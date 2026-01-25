@@ -1,0 +1,199 @@
+/* src/css/DistrictSelector.css */
+
+.district-selector-container {
+  position: relative;
+  /* CHANGED: Width increased to match the 2-column layout exactly */
+  width: 536px; 
+  z-index: 1000;
+  font-family: sans-serif;
+  /* Center the container itself using margin if not handled by parent */
+  margin: 0 auto; 
+}
+
+.selector-button {
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  color: #333;
+  transition: all 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dropdown-arrow {
+  font-size: 25px;
+  color: #666;
+  margin-left: 8px;
+  line-height: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  position: relative;
+}
+
+.selector-button:hover {
+  background: #f8f9fa;
+}
+
+.selector-button.active {
+  border-color: #2563eb;
+  color: #2563eb;
+  /* Optional: Remove bottom radius when open to look attached */
+  /* border-bottom-left-radius: 0; */
+  /* border-bottom-right-radius: 0; */
+}
+
+/* Style for the clear 'X' button */
+.clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: #999;
+  margin-left: 8px;
+  transition: all 0.2s;
+}
+
+.clear-btn:hover {
+  background-color: #eee;
+  color: #333;
+}
+
+/* The Mega Menu Dropdown */
+.dropdown-panel {
+  position: absolute;
+  top: 105%; /* Slight gap */
+  left: 0;
+  right: 0; /* Ensures it stretches to full width */
+  width: 100%; /* Matches container width */
+  height: 400px;
+  
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex; 
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  box-sizing: border-box; /* Ensures padding/border doesn't break width */
+}
+
+.district-column, .upazila-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.district-column {
+  border-right: 1px solid #f0f0f0;
+  background-color: #fff;
+}
+
+.upazila-column {
+  background-color: #fafafa;
+}
+
+.column-header {
+  padding: 12px;
+  font-weight: bold;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: #888;
+  border-bottom: 1px solid #f0f0f0;
+  background: white;
+}
+
+.list-wrapper {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Scrollbar styling */
+.list-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.list-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.list-wrapper::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.list-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.1s;
+}
+
+.list-item:hover, .list-item.hovered {
+  background-color: #eeffff;
+  color: #0077aa;
+}
+
+.list-item .arrow {
+  color: #ccc;
+  font-size: 16px;
+}
+
+.empty-state {
+  padding: 20px;
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 40px;
+}
+
+/* Responsive: Laptop */
+@media (max-width: 1440px) {
+  .district-selector-container {
+    /* CHANGED: Matches the narrower panel width */
+    width: 458px; 
+  }
+
+  .selector-button {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .dropdown-panel {
+    /* Inherit width from container */
+    width: 100%;
+    height: 320px;
+  }
+
+  .list-item {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Responsive: Mobile */
+@media (max-width: 600px) {
+  .district-selector-container {
+    width: 90vw; /* Full width on mobile */
+  }
+  .dropdown-panel {
+    width: 100%;
+    flex-direction: column; 
+  }
+  .district-column, .upazila-column {
+    height: 50%;
+  }
+}

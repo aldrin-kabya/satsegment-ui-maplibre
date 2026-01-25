@@ -1,0 +1,175 @@
+/* src/css/LayerControls.css */
+
+/* block start: styles for the map layer control panel */
+.map-layer-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 75px;
+  z-index: 10004;
+  display: flex;
+  align-items: center;
+}
+
+/* block start: main button for toggling base map type */
+.map-type-button {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  padding: 0;
+  background-color: white;
+  border: 3px solid transparent;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  z-index: 2; 
+}
+
+.map-type-button:hover {
+  border-color: #000;
+}
+/* block end: main button for toggling base map type */
+
+/* block start: hover-reveal panel for LULC layers */
+.layer-panel {
+  display: flex;
+  align-items: center; 
+  background-color: white;
+  padding: 4px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  margin-left: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  opacity: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
+  transition: opacity 0.2s 0.3s, transform 0.2s 0.3s;
+  z-index: 1;
+}
+
+.map-layer-controls:hover .layer-panel {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+/* block end: hover-reveal panel for LULC layers */
+
+/* block start: individual LULC option buttons inside the panel */
+.layer-option-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.layer-option-button:hover img {
+  border-color: #007b8b;
+}
+
+.layer-option-button:hover .layer-option-text {
+  color: #007b8b;
+}
+
+.layer-option-button img {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.layer-option-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #5a5a5a;
+  transition: color 0.2s ease;
+}
+
+.layer-option-button.active img {
+  border-color: #007b8b;
+}
+
+.layer-option-button.active .layer-option-text {
+  color: #007b8b;
+  font-weight: 500;
+}
+/* block end: individual LULC option buttons inside the panel */
+
+/* block start: inner container for the map type button's background image */
+.toggle-bg {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 12px 8px 8px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative; 
+  transition: padding 0.2s ease-in-out;
+}
+/* block end: inner container for the map type button's background image */
+
+.map-type-button:hover .toggle-bg {
+  padding-left: 12px;
+}
+
+/* block start: Gradient overlay pseudo-element */
+.toggle-bg::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.80), transparent);
+  border-radius: 0 0 8px 8px;
+  z-index: 1;
+}
+/* block end: Gradient overlay pseudo-element */
+
+/* block start: Container for the icon and text content */
+.map-type-content {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  z-index: 2;
+  width: 100%;
+  justify-content: flex-start;;
+}
+/* block end: Container for the icon and text content */
+
+.map-type-button:hover .map-type-content {
+  justify-content: center;
+}
+
+/* block start: text overlay styles for the map type button */
+.toggle-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+/* block end: text overlay styles for the map type button */
+
+.map-type-button:hover .toggle-text {
+  font-size: 12px;
+}
+
+/* block start: Styles for the SVG layer icon */
+.map-type-icon-svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+/* block end: Styles for the SVG layer icon */
