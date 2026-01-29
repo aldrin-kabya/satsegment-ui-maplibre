@@ -1,0 +1,50 @@
+/* block start: styles for the LULC statistics chart panel */
+/* block start: base style for all chart panels */
+.chart-panel {
+  position: absolute;
+  z-index: 10001;
+  background-color: white;
+  padding: 16px;
+  border-radius: 30px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  width: 265px; /* Slightly adjusted width */
+}
+/* block end: base style for all chart panels */
+
+/* block start: modifier for the right-aligned chart panel (single-view) */
+.chart-panel-right {
+  top: 10px;
+  right: 10px;
+}
+/* block end: modifier for the right-aligned chart panel (single-view) */
+
+/* block start: modifier for the left-aligned chart panel (compare-view) */
+.chart-panel-left {
+  top: 10px;
+  left: 10px;
+}
+/* block end: modifier for the left-aligned chart panel (compare-view) */
+
+
+.chart-panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  text-align: center;
+  color: #333;
+}
+/* block end: styles for the LULC statistics chart panel */
+
+
+/* block start: responsive adjustments for smaller laptop screens (max-width 1440px) */
+@media (max-width: 1440px) {
+  .chart-panel {
+    width: 200px;   /* Reduced from 265px to fit better on small screens */
+    padding: 12px;  /* Reduced padding to save space */
+  }
+
+  .chart-panel h3 {
+    font-size: 13px; /* Reduced font size */
+    margin-bottom: 4px;
+  }
+}
+/* block end: responsive adjustments for smaller laptop screens */

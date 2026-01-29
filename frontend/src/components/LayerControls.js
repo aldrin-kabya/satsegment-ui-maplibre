@@ -78,8 +78,8 @@ export default function LayerControls({
               onClick={() => handleLayerToggle('built-up')}
               className={`layer-option-button ${activeLulcLayer === 'built-up' ? 'active' : ''}`}
             >
-              <img src="/built-up-icon.png" alt="Urban" />
-              <span className="layer-option-text">Urban</span>
+              <img src="/built-up-icon.png" alt="Built-up" />
+              <span className="layer-option-text">Built-up</span>
             </button>
             <button
               onClick={() => handleLayerToggle('meadow')}
