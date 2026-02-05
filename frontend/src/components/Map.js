@@ -10,35 +10,18 @@ import DistrictSelector from './DistrictSelector';
 import BarChart from './BarChart';
 import '../css/BarChart.css';
 
-// --- SUB-COMPONENT: Chart Toggle Container ---
 const ChartToggleWrapper = ({ isVisible, toggleVisibility, positionClass, children }) => {
   if (isVisible) {
     return (
       <div className={`chart-panel ${positionClass} group fade-in`}>
         {children}
-        <button
-          onClick={toggleVisibility}
-          className="absolute top-3 right-3 w-5 h-5 bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold text-xs transition-colors"
-          title="Minimize"
-        >
-          ✕
-        </button>
+        <button onClick={toggleVisibility} className="absolute top-3 right-3 w-5 h-5 bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold text-xs transition-colors">✕</button>
       </div>
     );
   }
-
   return (
-    <button
-      onClick={toggleVisibility}
-      className={`absolute z-[10001] bg-white px-3 py-2 rounded-full shadow-md hover:bg-gray-50 border border-gray-200 transition-all flex items-center justify-center gap-2 ${positionClass}`}
-      style={{ width: 'auto', height: 'auto' }}
-      title="Show Statistics"
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-        <line x1="18" y1="20" x2="18" y2="10"></line>
-        <line x1="12" y1="20" x2="12" y2="4"></line>
-        <line x1="6" y1="20" x2="6" y2="14"></line>
-      </svg>
+    <button onClick={toggleVisibility} className={`absolute z-[10001] bg-white px-3 py-2 rounded-full shadow-md hover:bg-gray-50 border border-gray-200 transition-all flex items-center justify-center gap-2 ${positionClass}`} style={{ width: 'auto', height: 'auto' }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
       <span className="text-xs font-bold text-gray-700">Stats</span>
     </button>
   );
@@ -58,14 +41,8 @@ const MapComponent = () => {
   const API_URL = "http://103.81.70.74:8000"; 
   
   const PATHS = {
-    lulc: {
-      "2019": "/media/drive2/armun/sat-segment/processed_cog/2019_cog.tif",
-      "2023": "/media/drive2/armun/sat-segment/processed_cog/2023_cog.tif"
-    },
-    brickfield: {
-      "2019": "/media/drive2/armun/sat-segment/processed_cog/brickfield_2019_cog.tif",
-      "2023": "/media/drive2/armun/sat-segment/processed_cog/brickfield_2023_cog.tif"
-    }
+    lulc: { "2019": "/media/drive2/armun/sat-segment/processed_cog/2019_cog.tif", "2023": "/media/drive2/armun/sat-segment/processed_cog/2023_cog.tif" },
+    brickfield: { "2019": "/media/drive2/armun/sat-segment/processed_cog/brickfield_2019_cog.tif", "2023": "/media/drive2/armun/sat-segment/processed_cog/brickfield_2023_cog.tif" }
   };
 
   const BASEMAPS = {
@@ -83,8 +60,10 @@ const MapComponent = () => {
   const [basemapType, setBasemapType] = useState("satellite"); 
   const [activeLayerName, setActiveLayerName] = useState('all');
   const [isChartVisible, setIsChartVisible] = useState(true); 
-  
   const [mapsReady, setMapsReady] = useState(0);
+
+  // --- NEW: SELECTED REGION STATE ---
+  const [selectedRegionGeoJson, setSelectedRegionGeoJson] = useState(null);
 
   const LULC_COLORS = { 0: [0, 0, 0, 0], 1: [0, 255, 255, 255], 2: [255, 0, 0, 255], 3: [0, 0, 255, 255], 4: [0, 255, 0, 255], 5: [255, 255, 0, 255] };
   const BRICKFIELD_COLORS = { 0: [0, 0, 0, 0], 1: [255, 0, 0, 255] };
@@ -181,116 +160,74 @@ const MapComponent = () => {
     return BASEMAPS.satellite[selectedYear]?.attribution || BASEMAPS.satellite["2023"].attribution;
   };
 
-  // --- DYNAMIC POSITIONING LOGIC ---
   const isLeftChartActive = isCompareMode && activeLayerName !== 'brickfield';
-  let controlPanelTopClass = 'top-4'; // Default (Brickfield or Single Mode)
-
+  let controlPanelTopClass = 'top-4';
   if (isLeftChartActive) {
-    // If Chart is Visible -> Shift down to clear the big chart box
     controlPanelTopClass = isChartVisible ? 'top-[240px]' : 'top-[60px]';
   }
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
       
-      {/* 1. DISTRICT SELECTOR */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
         <DistrictSelector 
             mapInstance={isCompareMode ? mapLeft.current : mapRef.current}
             mapInstanceRight={isCompareMode ? mapRight.current : null}
             isCompareMode={isCompareMode}
             mapView={basemapType}
-            activeLulcLayer={activeLayerName} 
+            activeLulcLayer={activeLayerName}
+            onSelectRegion={setSelectedRegionGeoJson} // CONNECTED HERE
         />
       </div>
 
-      {/* 2. FLOATING CONTROL BUTTONS (Dynamic Position) */}
-      <div 
-        className={`absolute left-4 z-20 flex flex-col gap-3 transition-all duration-300 ease-in-out items-start ${controlPanelTopClass}`}
-      >
-        {/* Toggle Compare Button (Compact Pill) */}
+      <div className={`absolute left-4 z-20 flex flex-col gap-3 transition-all duration-300 ease-in-out items-start ${controlPanelTopClass}`}>
         <button 
           onClick={() => setIsCompareMode(!isCompareMode)}
           className={`py-2 px-4 rounded-full shadow-md text-sm font-bold transition-all transform hover:scale-105 border ${
-            isCompareMode 
-              ? 'bg-blue-600 text-white hover:bg-blue-700 border-transparent' 
-              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+            isCompareMode ? 'bg-blue-600 text-white hover:bg-blue-700 border-transparent' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
           }`}
         >
           {isCompareMode ? "Exit Comparison" : "Compare Years"}
         </button>
 
-        {/* Year Dropdown (Custom Pill Design matching Image) */}
         {!isCompareMode && (
           <div className="bg-white p-1 pr-1.5 rounded-full shadow-md flex items-center gap-1.5 border border-gray-200 transition-all hover:shadow-lg">
-            {/* Label */}
             <span className="pl-2 font-bold text-gray-700 text-sm">Year</span>
-            
-            {/* Inner Pill Dropdown */}
             <div className="relative">
-              <select 
-                value={selectedYear} 
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 focus:outline-none hover:border-gray-400 cursor-pointer transition-colors"
-              >
+              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 focus:outline-none hover:border-gray-400 cursor-pointer transition-colors">
                 <option value="2019">2019</option>
                 <option value="2023">2023</option>
               </select>
-              {/* Chevron Icon */}
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg></div>
             </div>
           </div>
         )}
       </div>
 
-      {/* 3. CHARTS */}
+      {/* Charts with selectedRegion passed down */}
       {activeLayerName !== 'brickfield' && (
         isCompareMode ? (
           <>
-            <ChartToggleWrapper 
-              isVisible={isChartVisible} 
-              toggleVisibility={() => setIsChartVisible(!isChartVisible)}
-              positionClass="chart-panel-left"
-            >
-              <BarChart map={mapLeft.current} year="2019" activeLayer={activeLayerName} apiUrl={API_URL} />
+            <ChartToggleWrapper isVisible={isChartVisible} toggleVisibility={() => setIsChartVisible(!isChartVisible)} positionClass="chart-panel-left">
+              <BarChart map={mapLeft.current} year="2019" activeLayer={activeLayerName} apiUrl={API_URL} selectedRegion={selectedRegionGeoJson} />
             </ChartToggleWrapper>
-
-            <ChartToggleWrapper 
-              isVisible={isChartVisible} 
-              toggleVisibility={() => setIsChartVisible(!isChartVisible)}
-              positionClass="chart-panel-right"
-            >
-              <BarChart map={mapRight.current} year="2023" activeLayer={activeLayerName} apiUrl={API_URL} />
+            <ChartToggleWrapper isVisible={isChartVisible} toggleVisibility={() => setIsChartVisible(!isChartVisible)} positionClass="chart-panel-right">
+              <BarChart map={mapRight.current} year="2023" activeLayer={activeLayerName} apiUrl={API_URL} selectedRegion={selectedRegionGeoJson} />
             </ChartToggleWrapper>
           </>
         ) : (
-          <ChartToggleWrapper 
-            isVisible={isChartVisible} 
-            toggleVisibility={() => setIsChartVisible(!isChartVisible)}
-            positionClass="chart-panel-right"
-          >
-            <BarChart map={mapRef.current} year={selectedYear} activeLayer={activeLayerName} apiUrl={API_URL} />
+          <ChartToggleWrapper isVisible={isChartVisible} toggleVisibility={() => setIsChartVisible(!isChartVisible)} positionClass="chart-panel-right">
+            <BarChart map={mapRef.current} year={selectedYear} activeLayer={activeLayerName} apiUrl={API_URL} selectedRegion={selectedRegionGeoJson} />
           </ChartToggleWrapper>
         )
       )}
 
-      {/* 4. LAYER CONTROLS */}
-      <LayerControls 
-        mapView={basemapType}
-        toggleMapView={toggleMapView}
-        activeLulcLayer={activeLayerName}
-        handleLayerToggle={handleLayerToggle}
-        selectedDataType="lulc"
-      />
+      <LayerControls mapView={basemapType} toggleMapView={toggleMapView} activeLulcLayer={activeLayerName} handleLayerToggle={handleLayerToggle} selectedDataType="lulc" />
 
-      {/* 5. ATTRIBUTION */}
       <div className="absolute bottom-0 right-0 z-20 bg-white/80 px-2 py-1 text-xs text-gray-700 pointer-events-none backdrop-blur-sm rounded-tl">
         <span dangerouslySetInnerHTML={{ __html: getAttributionText() }} />
       </div>
 
-      {/* 6. MAPS */}
       {isCompareMode ? (
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }}>
           <div ref={leftContainer} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />

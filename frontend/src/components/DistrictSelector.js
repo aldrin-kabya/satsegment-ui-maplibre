@@ -4,54 +4,60 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import bbox from '@turf/bbox';
 import '../css/DistrictSelector.css';
 
-const DistrictSelector = ({ mapInstance, mapInstanceRight, isCompareMode, mapView, activeLulcLayer }) => {
-  const [geoData, setGeoData] = useState(null);
+const DistrictSelector = ({ 
+  mapInstance, 
+  mapInstanceRight, 
+  isCompareMode, 
+  mapView, 
+  activeLulcLayer,
+  onSelectRegion 
+}) => {
+  const [geoDataADM3, setGeoDataADM3] = useState(null); // Upazilas
+  const [geoDataADM2, setGeoDataADM2] = useState(null); // Districts
+  
   const [districts, setDistricts] = useState([]);
   const [upazilaMap, setUpazilaMap] = useState({});
-  const [upazilaToDistrict, setUpazilaToDistrict] = useState({});
-  
+  const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredDistrict, setHoveredDistrict] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   // Selection State
   const [selectedLabel, setSelectedLabel] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null); 
-  const [selectedType, setSelectedType] = useState(null);
+  const [selectedType, setSelectedType] = useState(null); // 'district' or 'upazila'
 
   const containerRef = useRef(null);
 
-  // --- COLOR LOGIC ---
-  const isLulcActive = activeLulcLayer !== null;
-  const boundaryColor = isLulcActive 
-    ? '#ffffff' 
-    : (mapView === 'street' ? '#2563eb' : '#ffffff');
+  // --- COLOR LOGIC UPDATE ---
+  // Street View -> Black (Always). Satellite -> White (Always).
+  // This overrides the previous LULC logic as requested.
+  const boundaryColor = mapView === 'street' ? '#000000' : '#ffffff';
 
-  // 1. Fetch Data
+  // 1. Fetch Both Datasets
   useEffect(() => {
-    fetch('/bgd_admbnda_adm3_bbs_20201113_simplified.json')
-      .then((res) => res.json())
-      .then((data) => {
-        setGeoData(data);
-        processGeoData(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load boundaries:", err);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch('/bgd_admbnda_adm3_bbs_20201113_simplified.json').then(r => r.json()),
+      fetch('/bgd_admbnda_adm2_bbs_20201113_simplified.json').then(r => r.json())
+    ]).then(([adm3Data, adm2Data]) => {
+      setGeoDataADM3(adm3Data);
+      setGeoDataADM2(adm2Data);
+      processMenuStructure(adm3Data); // Use ADM3 to build the parent-child menu
+      setLoading(false);
+    }).catch(err => {
+      console.error("Failed to load boundaries:", err);
+      setLoading(false);
+    });
   }, []);
 
-  const processGeoData = (data) => {
+  // 2. Build Menu (Using ADM3 because it links Upazila to District)
+  const processMenuStructure = (data) => {
     const distSet = new Set();
     const upazilaMapping = {};
-    const childToParent = {}; 
 
     data.features.forEach((feature) => {
       const district = feature.properties.ADM2_EN;
       const upazila = feature.properties.ADM3_EN;
       distSet.add(district);
-      childToParent[upazila] = district;
       if (!upazilaMapping[district]) upazilaMapping[district] = [];
       if (!upazilaMapping[district].includes(upazila)) upazilaMapping[district].push(upazila);
     });
@@ -59,39 +65,61 @@ const DistrictSelector = ({ mapInstance, mapInstanceRight, isCompareMode, mapVie
     setDistricts(Array.from(distSet).sort());
     Object.keys(upazilaMapping).forEach(d => upazilaMapping[d].sort());
     setUpazilaMap(upazilaMapping);
-    setUpazilaToDistrict(childToParent);
   };
 
   // --- CORE RENDERER ---
   const renderBoundary = useCallback((map) => {
-    if (!map || !geoData || !selectedLabel) return;
+    if (!map || !geoDataADM3 || !geoDataADM2 || !selectedLabel) return;
 
-    if (!map.getSource('boundary-source')) {
-        map.addSource('boundary-source', { type: 'geojson', data: geoData });
+    // A. Add ADM2 Source (Districts)
+    if (!map.getSource('source-adm2')) {
+        map.addSource('source-adm2', { type: 'geojson', data: geoDataADM2 });
+    }
+    // B. Add ADM3 Source (Upazilas)
+    if (!map.getSource('source-adm3')) {
+        map.addSource('source-adm3', { type: 'geojson', data: geoDataADM3 });
     }
 
-    let filterExpression;
-    if (selectedType === 'district') {
-        filterExpression = ['==', 'ADM2_EN', selectedLabel];
-    } else {
-        filterExpression = ['all', ['==', 'ADM3_EN', selectedLabel], ['==', 'ADM2_EN', selectedDistrict]];
-    }
-
-    if (!map.getLayer('boundary-layer')) {
+    // --- LOGIC: Which layer to show? ---
+    const showAdm2 = selectedType === 'district';
+    
+    // C. Handle ADM2 Layer
+    if (!map.getLayer('layer-adm2')) {
         map.addLayer({
-            id: 'boundary-layer',
-            type: 'line',
-            source: 'boundary-source',
-            layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': boundaryColor, 'line-width': 3, 'line-opacity': 1 },
-            filter: filterExpression
+            id: 'layer-adm2', type: 'line', source: 'source-adm2',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': showAdm2 ? 'visible' : 'none' },
+            paint: { 'line-color': boundaryColor, 'line-width': 3 }
         });
     } else {
-        map.setPaintProperty('boundary-layer', 'line-color', boundaryColor);
-        map.setFilter('boundary-layer', filterExpression);
-        try { map.moveLayer('boundary-layer'); } catch (e) {}
+        map.setLayoutProperty('layer-adm2', 'visibility', showAdm2 ? 'visible' : 'none');
+        map.setPaintProperty('layer-adm2', 'line-color', boundaryColor);
+        if (showAdm2) map.setFilter('layer-adm2', ['==', 'ADM2_EN', selectedLabel]);
     }
-  }, [geoData, selectedLabel, selectedType, selectedDistrict, boundaryColor]);
+
+    // D. Handle ADM3 Layer
+    if (!map.getLayer('layer-adm3')) {
+        map.addLayer({
+            id: 'layer-adm3', type: 'line', source: 'source-adm3',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': !showAdm2 ? 'visible' : 'none' },
+            paint: { 'line-color': boundaryColor, 'line-width': 3 }
+        });
+    } else {
+        map.setLayoutProperty('layer-adm3', 'visibility', !showAdm2 ? 'visible' : 'none');
+        map.setPaintProperty('layer-adm3', 'line-color', boundaryColor);
+        if (!showAdm2) {
+            // Filter by Upazila Name AND Parent District to ensure uniqueness
+            map.setFilter('layer-adm3', ['all', ['==', 'ADM3_EN', selectedLabel], ['==', 'ADM2_EN', selectedDistrict]]);
+        }
+    }
+
+    // Force active layer to top
+    try {
+        if (showAdm2) map.moveLayer('layer-adm2');
+        else map.moveLayer('layer-adm3');
+    } catch(e) {}
+
+  }, [geoDataADM2, geoDataADM3, selectedLabel, selectedType, selectedDistrict, boundaryColor]);
+
 
   // --- PERSISTENCE ---
   useEffect(() => {
@@ -107,27 +135,45 @@ const DistrictSelector = ({ mapInstance, mapInstanceRight, isCompareMode, mapVie
     return () => { maps.forEach(map => map.off('styledata', handleStyleData)); };
   }, [mapInstance, mapInstanceRight, renderBoundary, selectedLabel]);
 
-  // --- USER INTERACTION ---
+
+  // --- HIGHLIGHT REGION (UPDATED LOGIC) ---
   const highlightRegion = (name, type, parentDistrict = null) => {
-    if (!geoData) return;
+    if (!geoDataADM2 || !geoDataADM3) return;
     
     setSelectedLabel(name);
     setSelectedType(type);
-    if (type === 'upazila') setSelectedDistrict(parentDistrict);
-    else setSelectedDistrict(name);
+    
+    let targetFeature = null;
 
-    const relevantFeatures = geoData.features.filter(f => {
-        if (type === 'district') return f.properties.ADM2_EN === name;
-        if (type === 'upazila') return f.properties.ADM3_EN === name && f.properties.ADM2_EN === parentDistrict;
-        return false;
-    });
+    if (type === 'district') {
+        setSelectedDistrict(name); // Context is itself
+        // Find in ADM2 File
+        targetFeature = geoDataADM2.features.find(f => f.properties.ADM2_EN === name);
+    } else {
+        setSelectedDistrict(parentDistrict); // Context is parent
+        // Find in ADM3 File
+        targetFeature = geoDataADM3.features.find(f => f.properties.ADM3_EN === name && f.properties.ADM2_EN === parentDistrict);
+    }
 
-    if (relevantFeatures.length > 0) {
-        const featureCollection = { type: 'FeatureCollection', features: relevantFeatures };
+    if (targetFeature) {
+        // --- Pass geometry to Parent for Statistics ---
+        // We wrap it in an array because our BarChart logic expects { geometries: [...] }
+        // Note: ADM2 districts are often MultiPolygons (1 feature), so this works perfectly.
+        if (onSelectRegion) {
+            onSelectRegion({ 
+                geometries: [targetFeature.geometry],
+                name: name 
+            });
+        }
+
+        // --- ZOOM ---
+        const featureCollection = { type: 'FeatureCollection', features: [targetFeature] };
         const [minX, minY, maxX, maxY] = bbox(featureCollection);
+
         if (mapInstance) mapInstance.fitBounds([[minX, minY], [maxX, maxY]], { padding: 50 });
         if (isCompareMode && mapInstanceRight) mapInstanceRight.fitBounds([[minX, minY], [maxX, maxY]], { padding: 50 });
     }
+
     setIsOpen(false);
   };
 
@@ -139,52 +185,35 @@ const DistrictSelector = ({ mapInstance, mapInstanceRight, isCompareMode, mapVie
     setHoveredDistrict(null);
     setIsOpen(false);
 
-    const remove = (map) => { if (map && map.getLayer('boundary-layer')) map.removeLayer('boundary-layer'); };
+    if (onSelectRegion) onSelectRegion(null);
+
+    const remove = (map) => { 
+        if (map && map.getLayer('layer-adm2')) map.setLayoutProperty('layer-adm2', 'visibility', 'none');
+        if (map && map.getLayer('layer-adm3')) map.setLayoutProperty('layer-adm3', 'visibility', 'none');
+    };
     remove(mapInstance);
     if (isCompareMode) remove(mapInstanceRight);
   };
 
-  // --- FIX: AUTO SCROLL TO SELECTION ---
+  // Auto Scroll
   useEffect(() => {
     if (isOpen) {
-        // Determine which district to show/highlight
-        let targetDistrict = hoveredDistrict;
+        let target = hoveredDistrict;
+        if (selectedType === 'district' && selectedLabel) target = selectedLabel;
+        else if (selectedType === 'upazila' && selectedDistrict) target = selectedDistrict;
         
-        // If we have a selection, that takes priority
-        if (selectedType === 'district' && selectedLabel) {
-            targetDistrict = selectedLabel;
-        } else if (selectedType === 'upazila' && selectedDistrict) {
-            targetDistrict = selectedDistrict;
-        }
+        if (target && target !== hoveredDistrict) setHoveredDistrict(target);
 
-        // 1. Restore the Right Column view (simulate hover)
-        if (targetDistrict && targetDistrict !== hoveredDistrict) {
-            setHoveredDistrict(targetDistrict);
-        }
-
-        // 2. Scroll Logic (Wrapped in timeout to allow render)
         setTimeout(() => {
-            // Scroll Left Column (District)
-            if (targetDistrict) {
-                const distEl = document.getElementById(`dist-item-${targetDistrict}`);
-                if (distEl) distEl.scrollIntoView({ block: 'center' });
-            }
-
-            // Scroll Right Column (Upazila) - only if Upazila is selected
-            if (selectedType === 'upazila' && selectedLabel) {
-                const upzEl = document.getElementById(`upz-item-${selectedLabel}`);
-                if (upzEl) upzEl.scrollIntoView({ block: 'center' });
-            }
+            if (target) document.getElementById(`dist-item-${target}`)?.scrollIntoView({ block: 'center' });
+            if (selectedType === 'upazila' && selectedLabel) document.getElementById(`upz-item-${selectedLabel}`)?.scrollIntoView({ block: 'center' });
         }, 10);
     }
-  }, [isOpen]); // Only run when menu opens
+  }, [isOpen]);
 
-  // Click Outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(event.target)) setIsOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -192,62 +221,33 @@ const DistrictSelector = ({ mapInstance, mapInstanceRight, isCompareMode, mapVie
 
   return (
     <div className="district-selector-container" ref={containerRef}>
-      <button 
-        className={`selector-button ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={loading}
-      >
+      <button className={`selector-button ${isOpen ? 'active' : ''}`} onClick={() => setIsOpen(!isOpen)} disabled={loading}>
         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {loading ? 'Loading...' : (selectedLabel || 'Select District / Upazila')}
         </span>
-
-        {!loading && (
-          selectedLabel ? (
-            <span className="clear-btn" onClick={handleClearSelection}>✕</span>
-          ) : (
-            <span className="dropdown-arrow">▾</span>
-          )
-        )}
+        {!loading && (selectedLabel ? <span className="clear-btn" onClick={handleClearSelection}>✕</span> : <span className="dropdown-arrow">▾</span>)}
       </button>
-
       {isOpen && (
         <div className="dropdown-panel">
           <div className="district-column">
             <div className="column-header">Districts</div>
             <div className="list-wrapper">
               {districts.map(dist => (
-                <div 
-                  key={dist}
-                  id={`dist-item-${dist}`} 
-                  className={`list-item ${hoveredDistrict === dist ? 'hovered' : ''}`}
-                  onMouseEnter={() => setHoveredDistrict(dist)}
-                  onClick={() => highlightRegion(dist, 'district')}
-                >
-                  {dist}
-                  <span className="arrow">›</span>
+                <div key={dist} id={`dist-item-${dist}`} className={`list-item ${hoveredDistrict === dist ? 'hovered' : ''}`} onMouseEnter={() => setHoveredDistrict(dist)} onClick={() => highlightRegion(dist, 'district')}>
+                  {dist}<span className="arrow">›</span>
                 </div>
               ))}
             </div>
           </div>
-
           <div className="upazila-column">
-             <div className="column-header">
-               {hoveredDistrict ? `Upazilas of ${hoveredDistrict}` : 'Select a District'}
-             </div>
+             <div className="column-header">{hoveredDistrict ? `Upazilas of ${hoveredDistrict}` : 'Select a District'}</div>
              <div className="list-wrapper">
                {hoveredDistrict && upazilaMap[hoveredDistrict]?.map(upz => (
-                 <div 
-                   key={upz} 
-                   id={`upz-item-${upz}`} 
-                   className={`list-item ${selectedLabel === upz ? 'hovered' : ''}`}
-                   onClick={() => highlightRegion(upz, 'upazila', hoveredDistrict)}
-                 >
+                 <div key={upz} id={`upz-item-${upz}`} className={`list-item ${selectedLabel === upz ? 'hovered' : ''}`} onClick={() => highlightRegion(upz, 'upazila', hoveredDistrict)}>
                    {upz}
                  </div>
                ))}
-               {!hoveredDistrict && (
-                 <div className="empty-state">Hover over a district to see sub-regions</div>
-               )}
+               {!hoveredDistrict && <div className="empty-state">Hover over a district to see sub-regions</div>}
              </div>
           </div>
         </div>
