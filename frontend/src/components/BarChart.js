@@ -35,28 +35,28 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
 
       if (selectedRegion && selectedRegion.geometries) {
         // POST for specific region
-        const geom = selectedRegion.geometries[0]; 
+        const geom = selectedRegion.geometries[0];
         res = await fetch(`${apiUrl}/exact_stats_geojson`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                url: PATHS[year],
-                geojson: { type: "Feature", geometry: geom }
-            })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: PATHS[year],
+            geojson: { type: "Feature", geometry: geom }
+          })
         });
       } else {
         // GET for Viewport
         const bounds = map.getBounds();
         const bbox = [
-            bounds.getWest().toFixed(4), bounds.getSouth().toFixed(4),
-            bounds.getEast().toFixed(4), bounds.getNorth().toFixed(4)
+          bounds.getWest().toFixed(4), bounds.getSouth().toFixed(4),
+          bounds.getEast().toFixed(4), bounds.getNorth().toFixed(4)
         ].join(',');
         const url = `${apiUrl}/exact_stats?url=${PATHS[year]}&bbox=${bbox}&_t=${Date.now()}`;
         res = await fetch(url);
       }
 
       if (!res.ok) { setDebugMsg(`HTTP ${res.status}`); setLoading(false); return; }
-      
+
       const json = await res.json();
       const counts = json.counts || {};
 
@@ -83,9 +83,9 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
 
   useEffect(() => {
     if (selectedRegion) {
-        fetchStats();
-        if (map) map.off('moveend', fetchStats);
-        return; 
+      fetchStats();
+      if (map) map.off('moveend', fetchStats);
+      return;
     }
     if (!map) return;
     fetchStats();
@@ -107,19 +107,19 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
   // --- TITLE LOGIC ---
   const getTitle = () => {
     if (selectedRegion && selectedRegion.name) {
-        return `${selectedRegion.name} ${year}`;
+      return `${selectedRegion.name} ${year}`;
     }
     return `Land Cover ${year}`;
   };
 
   if (!chartData.length) {
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center opacity-70">
-            <h3 style={{fontWeight: 'bold', margin: '0 0 4px 0', fontSize: '16px', textAlign: 'center', color: '#333'}}>{getTitle()}</h3>
-            <div className="text-xs text-gray-500 py-8">
-                {loading ? <span className="animate-pulse">Calculating...</span> : <span>{debugMsg || "No Data"}</span>}
-            </div>
+      <div className="w-full h-full flex flex-col items-center justify-center opacity-70">
+        <h3 style={{ fontWeight: 'bold', margin: '0 0 4px 0', fontSize: '16px', textAlign: 'center', color: '#333' }}>{getTitle()}</h3>
+        <div className="text-xs text-gray-500 py-8">
+          {loading ? <span className="animate-pulse">Calculating...</span> : <span>{debugMsg || "No Data"}</span>}
         </div>
+      </div>
     );
   }
 
@@ -128,11 +128,11 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
     datasets: [{
       data: chartData.map(d => d.percentage),
       backgroundColor: chartData.map(d => {
-        const isActive = activeLayer === 'all' || (d.name.toLowerCase().replace(' ', '-') === activeLayer) || (activeLayer === 'built-up' && d.name === 'Urban');
+        const isActive = activeLayer === 'all' || (d.name.toLowerCase().replace(' ', '-') === activeLayer);
         return isActive ? d.color : 'rgba(180, 180, 180, 0.5)';
       }),
       borderColor: chartData.map(d => {
-        const isActive = activeLayer === 'all' || (d.name.toLowerCase().replace(' ', '-') === activeLayer) || (activeLayer === 'built-up' && d.name === 'Urban');
+        const isActive = activeLayer === 'all' || (d.name.toLowerCase().replace(' ', '-') === activeLayer);
         return isActive ? '#333' : 'rgba(180, 180, 180, 0.8)';
       }),
       borderWidth: 0,
@@ -144,12 +144,12 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
   const options = {
     responsive: true, maintainAspectRatio: true,
     layout: {
-        padding: { top: 15 } // Prevent top label clip
+      padding: { top: 15 } // Prevent top label clip
     },
     plugins: {
       legend: { display: false },
       // --- FIX 2: ENABLE TOOLTIPS ---
-      tooltip: { 
+      tooltip: {
         enabled: true,
         backgroundColor: 'rgba(0,0,0,0.8)',
         titleFont: { size: 13 },
@@ -157,41 +157,41 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
         padding: 10,
         cornerRadius: 4,
         callbacks: {
-            title: (items) => items[0].label, // Show Class Name
-            label: (context) => ` ${context.parsed.y.toFixed(2)}%` // Precise value on hover
+          title: (items) => items[0].label, // Show Class Name
+          label: (context) => ` ${context.parsed.y.toFixed(2)}%` // Precise value on hover
         }
       },
       datalabels: {
         anchor: 'end', align: 'end', offset: -2,
         // --- FIX 1: 1 DECIMAL PLACE ---
         formatter: (value) => {
-            if (value === 0) return ""; 
-            return `${value.toFixed(1)}%`;
+          if (value === 0) return "";
+          return `${value.toFixed(1)}%`;
         },
         font: { size: 11, weight: '500' },
         color: (context) => {
           const clsName = context.chart.data.labels[context.dataIndex];
-          const isActive = activeLayer === 'all' || (clsName.toLowerCase().replace(' ', '-') === activeLayer) || (activeLayer === 'built-up' && clsName === 'Urban');
+          const isActive = activeLayer === 'all' || (clsName.toLowerCase().replace(' ', '-') === activeLayer);
           return isActive ? '#333' : 'rgba(180, 180, 180, 0.9)';
         }
       }
     },
-    scales: { 
-      y: { display: false, max: 100 }, 
-      x: { 
-        grid: { display: false }, 
-        ticks: { 
-            maxRotation: 0, minRotation: 0, autoSkip: false,
-            font: (context) => { const width = context.chart.width; return { size: width < 220 ? 8 : 11 }; }
-        } 
-      } 
+    scales: {
+      y: { display: false, max: 100 },
+      x: {
+        grid: { display: false },
+        ticks: {
+          maxRotation: 0, minRotation: 0, autoSkip: false,
+          font: (context) => { const width = context.chart.width; return { size: width < 220 ? 8 : 11 }; }
+        }
+      }
     },
     animation: { duration: 500 }
   };
 
   return (
     <div className="w-full h-full">
-      <h3 style={{fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '16px', textAlign: 'center', color: '#333'}}>
+      <h3 style={{ fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '16px', textAlign: 'center', color: '#333' }}>
         {getTitle()}
       </h3>
       <Bar data={data} options={options} plugins={[barShadowPlugin]} />
