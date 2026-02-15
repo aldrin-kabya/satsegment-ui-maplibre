@@ -153,8 +153,15 @@ const MapComponent = () => {
     mapInstance.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' } });
   };
 
+  const [mapLoaded, setMapLoaded] = useState({ single: false, left: false, right: false });
+
+  // ... (keep existing code)
+
   useEffect(() => {
-    if (showChangeMap) return; // Prevent init if Change Map is showing
+    if (showChangeMap) return;
+
+    // Reset loaded state when recompiling maps
+    setMapLoaded({ single: false, left: false, right: false });
 
     let currentCenter = INITIAL_VIEW.center; let currentZoom = INITIAL_VIEW.zoom;
     const activeMap = mapRef.current || mapLeft.current;
@@ -169,12 +176,25 @@ const MapComponent = () => {
       mapRight.current = new maplibregl.Map({ container: rightContainer.current, ...commonOptions });
       compareRef.current = new Compare(mapLeft.current, mapRight.current, mapContainer.current, {});
       setTimeout(() => { if (mapLeft.current) mapLeft.current.resize(); if (mapRight.current) mapRight.current.resize(); }, 100);
-      const setupLeft = () => { updateBasemap(mapLeft.current, "2019"); updateOverlay(mapLeft.current, "2019"); };
-      const setupRight = () => { updateBasemap(mapRight.current, "2023"); updateOverlay(mapRight.current, "2023"); };
+
+      const setupLeft = () => {
+        setMapLoaded(prev => ({ ...prev, left: true }));
+        updateBasemap(mapLeft.current, "2019");
+        updateOverlay(mapLeft.current, "2019");
+      };
+      const setupRight = () => {
+        setMapLoaded(prev => ({ ...prev, right: true }));
+        updateBasemap(mapRight.current, "2023");
+        updateOverlay(mapRight.current, "2023");
+      };
       mapLeft.current.on('load', setupLeft); mapRight.current.on('load', setupRight);
     } else {
       mapRef.current = new maplibregl.Map({ container: singleMapContainer.current, ...commonOptions });
-      mapRef.current.on('load', () => { updateBasemap(mapRef.current, selectedYear); updateOverlay(mapRef.current, selectedYear); });
+      mapRef.current.on('load', () => {
+        setMapLoaded(prev => ({ ...prev, single: true }));
+        updateBasemap(mapRef.current, selectedYear);
+        updateOverlay(mapRef.current, selectedYear);
+      });
     }
 
     setMapsReady(prev => prev + 1);
@@ -182,12 +202,12 @@ const MapComponent = () => {
 
   useEffect(() => {
     if (isCompareMode) {
-      if (mapLeft.current && mapLeft.current.isStyleLoaded()) { updateBasemap(mapLeft.current, "2019"); updateOverlay(mapLeft.current, "2019"); }
-      if (mapRight.current && mapRight.current.isStyleLoaded()) { updateBasemap(mapRight.current, "2023"); updateOverlay(mapRight.current, "2023"); }
+      if (mapLeft.current && mapLoaded.left) { updateBasemap(mapLeft.current, "2019"); updateOverlay(mapLeft.current, "2019"); }
+      if (mapRight.current && mapLoaded.right) { updateBasemap(mapRight.current, "2023"); updateOverlay(mapRight.current, "2023"); }
     } else {
-      if (mapRef.current && mapRef.current.isStyleLoaded()) { updateBasemap(mapRef.current, selectedYear); updateOverlay(mapRef.current, selectedYear); }
+      if (mapRef.current && mapLoaded.single) { updateBasemap(mapRef.current, selectedYear); updateOverlay(mapRef.current, selectedYear); }
     }
-  }, [selectedYear, activeLayerName, basemapType]);
+  }, [selectedYear, activeLayerName, basemapType, mapLoaded]);
 
   const getAttributionText = () => {
     if (basemapType === 'street') return BASEMAPS.street.attribution;

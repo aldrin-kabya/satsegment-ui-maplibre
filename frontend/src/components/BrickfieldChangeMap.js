@@ -72,7 +72,8 @@ const BrickfieldChangeMap = ({ onClose, initialViewState }) => {
         type: 'raster',
         source: 'change-source',
         paint: {
-          'raster-resampling': 'nearest'
+          'raster-resampling': 'nearest',
+          'raster-opacity': 0.6
         }
       });
 

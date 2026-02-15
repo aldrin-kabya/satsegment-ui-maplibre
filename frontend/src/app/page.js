@@ -6,8 +6,16 @@ import dynamic from 'next/dynamic';
 const Map = dynamic(() => import('../components/Map'), {
   ssr: false, // This tells Next.js: "Do not run this on the server"
   loading: () => (
-    <div className="flex items-center justify-center w-full h-screen bg-gray-100 text-black">
-      <p className="text-xl font-bold animate-pulse">Loading GIS Engine...</p>
+    <div className="flex items-center justify-center w-full h-screen bg-gradient-to-br from-blue-50 to-gray-100">
+      <div className="flex flex-col items-center gap-4">
+        {/* Spinner Animation */}
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
+        </div>
+        {/* Loading Text */}
+        <p className="text-xl font-bold text-gray-700">Loading Map</p>
+      </div>
     </div>
   ),
 });
