@@ -12,7 +12,7 @@ import BrickfieldChangeMap from './BrickfieldChangeMap'; // Import the new compo
 import '../css/BarChart.css';
 
 // --- SUB-COMPONENT: Chart Toggle Container ---
-const ChartToggleWrapper = ({ isVisible, toggleVisibility, positionClass, children }) => {
+const ChartToggleWrapper = ({ isVisible, toggleVisibility, positionClass, showMinimized = true, children }) => {
   if (isVisible) {
     return (
       <div className={`chart-panel ${positionClass} group fade-in`}>
@@ -27,6 +27,8 @@ const ChartToggleWrapper = ({ isVisible, toggleVisibility, positionClass, childr
       </div>
     );
   }
+
+  if (!showMinimized) return null;
 
   return (
     <button
@@ -198,8 +200,8 @@ const MapComponent = () => {
   let controlPanelTopClass = 'top-4';
   if (isLeftChartActive) {
     // If Left Chart is visible, push controls down approx 240px
-    // If Left Chart is minimized (small button), push controls down approx 60px
-    controlPanelTopClass = isChartVisible ? 'top-[240px]' : 'top-[60px]';
+    // If Left Chart is minimized (hidden), buttons return to top-4 default
+    controlPanelTopClass = isChartVisible ? 'top-[240px]' : 'top-4';
   }
 
   // --- CONDITIONAL RENDER: CHANGE MAP ---
@@ -278,6 +280,7 @@ const MapComponent = () => {
                   isVisible={isChartVisible}
                   toggleVisibility={() => setIsChartVisible(!isChartVisible)}
                   positionClass="chart-panel-left"
+                  showMinimized={false}
                 >
                   <BarChart map={mapLeft.current} year="2019" activeLayer={activeLayerName} apiUrl={API_URL} selectedRegion={selectedRegionGeoJson} />
                 </ChartToggleWrapper>
