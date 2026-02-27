@@ -97,6 +97,9 @@ const MapComponent = () => {
   // Toggle for the full-screen Change Map
   const [showChangeMap, setShowChangeMap] = useState(false);
 
+  const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
+  const yearDropdownRef = useRef(null);
+
   const LULC_COLORS = { 0: [0, 0, 0, 0], 1: [0, 255, 255, 255], 2: [255, 0, 0, 255], 3: [0, 0, 255, 255], 4: [0, 255, 0, 255], 5: [255, 255, 0, 255] };
   const BRICKFIELD_COLORS = { 0: [0, 0, 0, 0], 1: [255, 0, 0, 255] };
 
@@ -215,6 +218,23 @@ const MapComponent = () => {
     return BASEMAPS.satellite[selectedYear]?.attribution || BASEMAPS.satellite["2023"].attribution;
   };
 
+  // Handle outside clicks for the Year Dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (yearDropdownRef.current && !yearDropdownRef.current.contains(event.target)) {
+        setIsYearDropdownOpen(false);
+      }
+    };
+
+    if (isYearDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isYearDropdownOpen]);
+
   // --- DYNAMIC POSITIONING LOGIC ---
   const isLeftChartActive = isCompareMode && activeLayerName !== 'brickfield';
   let controlPanelTopClass = 'top-4';
@@ -265,15 +285,39 @@ const MapComponent = () => {
             {!isCompareMode && (
               <div className="bg-white p-1 pr-1.5 rounded-full shadow-md flex items-center gap-1.5 border border-gray-200 transition-all hover:shadow-lg">
                 <span className="pl-2 font-bold text-gray-700 text-sm">Year</span>
-                <div className="relative">
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 focus:outline-none hover:border-gray-400 cursor-pointer transition-colors"
+                <div className="relative" ref={yearDropdownRef}>
+                  {/* Custom styled select replacement */}
+                  <div
+                    className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 cursor-pointer transition-colors hover:border-gray-400 relative"
+                    onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
                   >
-                    <option value="2019">2019</option>
-                    <option value="2023">2023</option>
-                  </select>
+                    {selectedYear}
+
+                    {/* Dropdown Menu */}
+                    <div className={`absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-[14px] shadow-lg overflow-hidden transition-all duration-200 z-50 ${isYearDropdownOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                      <div
+                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${selectedYear === "2023" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedYear("2023");
+                          setIsYearDropdownOpen(false);
+                        }}
+                      >
+                        2023
+                      </div>
+                      <div
+                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${selectedYear === "2019" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedYear("2019");
+                          setIsYearDropdownOpen(false);
+                        }}
+                      >
+                        2019
+                      </div>
+                    </div>
+
+                  </div>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
                   </div>

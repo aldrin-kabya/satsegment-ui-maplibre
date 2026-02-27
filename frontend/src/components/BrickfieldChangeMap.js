@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../css/LayerControls.css'; // For the toggle button style
@@ -14,6 +14,10 @@ const BrickfieldChangeMap = ({ onClose, initialViewState }) => {
   // New state to track if map is ready
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedRegionGeoJson, setSelectedRegionGeoJson] = useState(null);
+  const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
+
+  // Ref for the year dropdown to handle outside clicks
+  const yearDropdownRef = useRef(null);
 
   const API_URL = "http://103.81.70.74:8000";
 
@@ -101,6 +105,23 @@ const BrickfieldChangeMap = ({ onClose, initialViewState }) => {
     }
   }, [basemap, selectedYear, isLoaded]); // Depend on isLoaded
 
+  // Handle outside clicks for the Year Dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (yearDropdownRef.current && !yearDropdownRef.current.contains(event.target)) {
+        setIsYearDropdownOpen(false);
+      }
+    };
+
+    if (isYearDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isYearDropdownOpen]);
+
   return (
     <div className="fixed inset-0 z-[5000] bg-white">
       {/* HEADER / BACK BUTTON */}
@@ -136,17 +157,41 @@ const BrickfieldChangeMap = ({ onClose, initialViewState }) => {
 
       {/* YEAR SELECTOR - TOP LEFT (Below Back Button) */}
       {basemap === 'satellite' && (
-        <div className="absolute top-20 left-4 z-10 bg-white p-1 pr-1.5 rounded-full shadow-md flex items-center gap-1.5 border border-gray-200 transition-all hover:shadow-lg">
+        <div className="absolute top-[66px] left-4 z-10 bg-white p-1 pr-1.5 rounded-full shadow-md flex items-center gap-1.5 border border-gray-200 transition-all hover:shadow-lg">
           <span className="pl-2 font-bold text-gray-700 text-sm">Year</span>
-          <div className="relative">
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 focus:outline-none hover:border-gray-400 cursor-pointer transition-colors"
+          <div className="relative" ref={yearDropdownRef}>
+            {/* Custom styled select replacement */}
+            <div
+              className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 cursor-pointer transition-colors hover:border-gray-400 relative"
+              onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
             >
-              <option value="2019">2019</option>
-              <option value="2023">2023</option>
-            </select>
+              {selectedYear}
+
+              {/* Dropdown Menu */}
+              <div className={`absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-[14px] shadow-lg overflow-hidden transition-all duration-200 z-50 ${isYearDropdownOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                <div
+                  className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${selectedYear === "2023" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedYear("2023");
+                    setIsYearDropdownOpen(false);
+                  }}
+                >
+                  2023
+                </div>
+                <div
+                  className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${selectedYear === "2019" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedYear("2019");
+                    setIsYearDropdownOpen(false);
+                  }}
+                >
+                  2019
+                </div>
+              </div>
+
+            </div>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
             </div>
@@ -155,65 +200,65 @@ const BrickfieldChangeMap = ({ onClose, initialViewState }) => {
       )}
 
       {/* LEGEND - TOP RIGHT */}
-      <div className="absolute top-4 right-4 z-10 bg-white p-3 rounded shadow-md border border-gray-100 flex flex-col gap-3" style={{ maxWidth: '220px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <h4 className="font-bold text-sm text-gray-800 border-b pb-1">Change Legend</h4>
+      <div className="absolute top-4 right-4 z-10 bg-white p-3.5 rounded-3xl shadow-md border border-gray-100 flex flex-col gap-3.5" style={{ maxWidth: '240px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <h4 className="font-bold text-[15px] text-gray-800 border-b pb-1.5 text-center">Change Legend</h4>
 
         {/* Unchanged */}
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-4 block border border-gray-300" style={{ backgroundColor: 'rgb(128, 128, 128)' }}></span>
-          <span className="text-xs text-gray-700">Unchanged Brickfield</span>
+        <div className="flex items-center gap-2.5">
+          <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(128, 128, 128)' }}></span>
+          <span className="text-[13px] text-gray-700">Unchanged Brickfield</span>
         </div>
 
         {/* LOST Section */}
         <div>
-          <h5 className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">Lost (Became...)</h5>
+          <h5 className="text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Lost (Became...)</h5>
           <div className="space-y-1.5 pl-1">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ backgroundColor: 'rgb(0, 255, 255)' }}></span>
-              <span className="text-xs text-gray-700">Forest</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(0, 255, 255)' }}></span>
+              <span className="text-[13px] text-gray-700">Forest</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></span>
-              <span className="text-xs text-gray-700">Built-up</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></span>
+              <span className="text-[13px] text-gray-700">Built-up</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></span>
-              <span className="text-xs text-gray-700">Water</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></span>
+              <span className="text-[13px] text-gray-700">Water</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></span>
-              <span className="text-xs text-gray-700">Farmland</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></span>
+              <span className="text-[13px] text-gray-700">Farmland</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></span>
-              <span className="text-xs text-gray-700">Meadow</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></span>
+              <span className="text-[13px] text-gray-700">Meadow</span>
             </div>
           </div>
         </div>
 
         {/* GAINED Section */}
         <div>
-          <h5 className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">Gained (From...)</h5>
+          <h5 className="text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Gained (From...)</h5>
           <div className="space-y-1.5 pl-1">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 255), rgb(0, 255, 255) 3px, #fff 3px, #fff 5px)' }}></span>
-              <span className="text-xs text-gray-700">Forest</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 255), rgb(0, 255, 255) 3px, #fff 3px, #fff 5px)' }}></span>
+              <span className="text-[13px] text-gray-700">Forest</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 0, 0), rgb(255, 0, 0) 3px, #fff 3px, #fff 5px)' }}></span>
-              <span className="text-xs text-gray-700">Built-up</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 0, 0), rgb(255, 0, 0) 3px, #fff 3px, #fff 5px)' }}></span>
+              <span className="text-[13px] text-gray-700">Built-up</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 0, 255), rgb(0, 0, 255) 3px, #fff 3px, #fff 5px)' }}></span>
-              <span className="text-xs text-gray-700">Water</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 0, 255), rgb(0, 0, 255) 3px, #fff 3px, #fff 5px)' }}></span>
+              <span className="text-[13px] text-gray-700">Water</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 0), rgb(0, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
-              <span className="text-xs text-gray-700">Farmland</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 0), rgb(0, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
+              <span className="text-[13px] text-gray-700">Farmland</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 block border border-gray-300" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 255, 0), rgb(255, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
-              <span className="text-xs text-gray-700">Meadow</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 255, 0), rgb(255, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
+              <span className="text-[13px] text-gray-700">Meadow</span>
             </div>
           </div>
         </div>
