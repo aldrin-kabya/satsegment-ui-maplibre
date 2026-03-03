@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Compare from '@maplibre/maplibre-gl-compare';
@@ -8,7 +8,8 @@ import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
 import LayerControls from './LayerControls';
 import DistrictSelector from './DistrictSelector';
 import BarChart from './BarChart';
-import BrickfieldChangeMap from './BrickfieldChangeMap'; // Import the new component
+import BrickfieldChangeMap from './BrickfieldChangeMap';
+import useInstitutions from '../hooks/useInstitutions';
 import '../css/BarChart.css';
 
 // --- SUB-COMPONENT: Chart Toggle Container ---
@@ -100,6 +101,10 @@ const MapComponent = () => {
   const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
   const yearDropdownRef = useRef(null);
 
+  // Institutions layer
+  const institutionsGeoJson = useInstitutions();
+  const [showInstitutions, setShowInstitutions] = useState(false);
+
   const LULC_COLORS = { 0: [0, 0, 0, 0], 1: [0, 255, 255, 255], 2: [255, 0, 0, 255], 3: [0, 0, 255, 255], 4: [0, 255, 0, 255], 5: [255, 255, 0, 255] };
   const BRICKFIELD_COLORS = { 0: [0, 0, 0, 0], 1: [255, 0, 0, 255] };
 
@@ -153,7 +158,9 @@ const MapComponent = () => {
     if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
     if (!config) return;
     mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256, minzoom: 0, maxzoom: 24 });
-    mapInstance.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' } });
+    // Insert overlay BELOW institutions layer so pins stay visible
+    const beforeId = mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined;
+    mapInstance.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' } }, beforeId);
   };
 
   const [mapLoaded, setMapLoaded] = useState({ single: false, left: false, right: false });
@@ -212,6 +219,91 @@ const MapComponent = () => {
     }
   }, [selectedYear, activeLayerName, basemapType, mapLoaded]);
 
+  // --- INSTITUTIONS LAYER MANAGEMENT ---
+  const addInstitutionsLayer = useCallback((mapInstance) => {
+    if (!mapInstance || !institutionsGeoJson) return;
+    if (mapInstance.getSource('institutions-source')) return; // already added
+
+    // Create an SVG pin icon and add it as a map image
+    const size = 36;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    // Pin body
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2 - 4, 10, Math.PI, 0, false);
+    ctx.lineTo(size / 2, size - 2);
+    ctx.closePath();
+    ctx.fillStyle = '#E53E3E';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Inner circle
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2 - 4, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+
+    if (!mapInstance.hasImage('institution-pin')) {
+      mapInstance.addImage('institution-pin', ctx.getImageData(0, 0, size, size), {
+        pixelRatio: 2,
+      });
+    }
+
+    mapInstance.addSource('institutions-source', {
+      type: 'geojson',
+      data: institutionsGeoJson,
+    });
+
+    mapInstance.addLayer({
+      id: 'institutions-layer',
+      type: 'symbol',
+      source: 'institutions-source',
+      layout: {
+        'icon-image': 'institution-pin',
+        'icon-size': 1.0,
+        'icon-allow-overlap': false,
+        'text-field': ['get', 'name'],
+        'text-font': ['Open Sans Regular'],
+        'text-size': 11,
+        'text-offset': [0, 1.4],
+        'text-anchor': 'top',
+        'text-optional': true,
+        'text-max-width': 12,
+      },
+      paint: {
+        'text-color': '#1a202c',
+        'text-halo-color': '#ffffff',
+        'text-halo-width': 1.5,
+      },
+      minzoom: 8,
+    });
+  }, [institutionsGeoJson]);
+
+  const removeInstitutionsLayer = useCallback((mapInstance) => {
+    if (!mapInstance) return;
+    if (mapInstance.getLayer('institutions-layer')) mapInstance.removeLayer('institutions-layer');
+    if (mapInstance.getSource('institutions-source')) mapInstance.removeSource('institutions-source');
+  }, []);
+
+  useEffect(() => {
+    const shouldShow = showInstitutions && activeLayerName === 'brickfield';
+    const activeMaps = isCompareMode
+      ? [mapLeft.current, mapRight.current]
+      : [mapRef.current];
+
+    activeMaps.forEach(m => {
+      if (!m) return;
+      if (shouldShow) {
+        addInstitutionsLayer(m);
+      } else {
+        removeInstitutionsLayer(m);
+      }
+    });
+  }, [showInstitutions, activeLayerName, isCompareMode, addInstitutionsLayer, removeInstitutionsLayer, mapLoaded]);
+
   const getAttributionText = () => {
     if (basemapType === 'street') return BASEMAPS.street.attribution;
     if (isCompareMode) return `Left: ${BASEMAPS.satellite["2019"].attribution} | Right: ${BASEMAPS.satellite["2023"].attribution}`;
@@ -241,7 +333,7 @@ const MapComponent = () => {
   if (isLeftChartActive) {
     // If Left Chart is visible, push controls down approx 240px
     // If Left Chart is minimized (hidden), buttons return to top-4 default
-    controlPanelTopClass = isChartVisible ? 'top-[240px]' : 'top-4';
+    controlPanelTopClass = isChartVisible ? 'top-[210px]' : 'top-4';
   }
 
   // --- CONDITIONAL RENDER: CHANGE MAP ---
@@ -274,7 +366,7 @@ const MapComponent = () => {
             <button
               onClick={() => setIsCompareMode(!isCompareMode)}
               className={`py-2 px-4 rounded-full shadow-md text-sm font-bold transition-all transform hover:scale-105 border ${isCompareMode
-                ? 'bg-blue-600 text-white hover:bg-blue-700 border-transparent'
+                ? 'bg-white text-red-600 hover:bg-gray-50 border-gray-200'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
                 }`}
             >
@@ -325,11 +417,26 @@ const MapComponent = () => {
               </div>
             )}
 
-            {/* NEW BUTTON: Show Changes (Only for Brickfield) */}
+            {/* INSTITUTIONS TOGGLE (Only for Brickfield) */}
+            {activeLayerName === 'brickfield' && (
+              <div className="flex items-center gap-2 bg-white pl-3 pr-3 py-1.5 rounded-full shadow-md border border-gray-200">
+                <span className="text-sm font-bold text-gray-700">Institutions</span>
+                <button
+                  onClick={() => setShowInstitutions(prev => !prev)}
+                  className={`relative w-10 h-[22px] rounded-full transition-colors duration-200 ${showInstitutions ? 'bg-red-500' : 'bg-gray-300'}`}
+                  role="switch"
+                  aria-checked={showInstitutions}
+                >
+                  <span className={`absolute top-[2px] left-[2px] w-[18px] h-[18px] bg-white rounded-full shadow transition-transform duration-200 ${showInstitutions ? 'translate-x-[18px]' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            )}
+
+            {/* Show Changes (Only for Brickfield) */}
             {activeLayerName === 'brickfield' && (
               <button
                 onClick={() => setShowChangeMap(true)}
-                className="py-2 px-4 rounded-full shadow-md text-sm font-bold bg-purple-600 text-white hover:bg-purple-700 transition-transform hover:scale-105 border border-transparent"
+                className="py-2 px-4 rounded-full shadow-md text-sm font-bold bg-white text-gray-700 hover:bg-gray-50 transition-transform hover:scale-105 border border-gray-200"
               >
                 Show Changes
               </button>
