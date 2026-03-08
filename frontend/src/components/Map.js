@@ -88,6 +88,7 @@ const MapComponent = () => {
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [selectedYear, setSelectedYear] = useState("2023");
   const [basemapType, setBasemapType] = useState("satellite");
+  const [satelliteProvider, setSatelliteProvider] = useState("bing"); // 'bing' or 'esri'
   const [activeLayerName, setActiveLayerName] = useState('all');
   const [isChartVisible, setIsChartVisible] = useState(true);
   const [mapsReady, setMapsReady] = useState(0);
@@ -100,6 +101,9 @@ const MapComponent = () => {
 
   const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
   const yearDropdownRef = useRef(null);
+
+  const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
+  const providerDropdownRef = useRef(null);
 
   // Institutions layer
   const institutionsGeoJson = useInstitutions();
@@ -130,6 +134,11 @@ const MapComponent = () => {
       case 'farmland': activeClasses[4] = true; break;
       case 'meadow': activeClasses[5] = true; break;
     }
+
+    // Check if everything is off
+    const isAnyActive = Object.values(activeClasses).some(val => val);
+    if (!isAnyActive) return null;
+
     const dynamicColors = { ...LULC_COLORS };
     Object.keys(activeClasses).forEach(key => { if (!activeClasses[key]) dynamicColors[key] = [0, 0, 0, 0]; });
     const colormap = encodeURIComponent(JSON.stringify(dynamicColors));
@@ -143,25 +152,83 @@ const MapComponent = () => {
     const sourceId = 'basemap-source'; const layerId = 'basemap-layer';
     let config = BASEMAPS.street;
     if (basemapType === 'satellite') config = BASEMAPS.satellite[yearForSat] || BASEMAPS.satellite["2023"];
-    if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
-    if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
-    mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256 });
-    const beforeId = mapInstance.getLayer('overlay-layer') ? 'overlay-layer' : undefined;
-    mapInstance.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: {} }, beforeId);
+
+    const beforeId = mapInstance.getLayer('overlay-layer') ? 'overlay-layer' :
+      (mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
+        (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined));
+
+    const basemapSource = mapInstance.getSource(sourceId);
+    if (basemapSource) {
+      basemapSource.setTiles([config.url]);
+    } else {
+      mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256, maxzoom: 19 });
+      mapInstance.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: {} }, beforeId);
+    }
+
+    if (basemapType === 'satellite' && satelliteProvider === 'bing') {
+      const cogPath = yearForSat === "2019"
+        ? "/media/drive2/armun/sat-segment/processed_cog/bing_satellite_2019_cog.tif"
+        : "/media/drive2/armun/sat-segment/processed_cog/bing_satellite_2023_cog.tif";
+      const bingUrl = `${API_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${cogPath}&nodata=0`;
+      const bingSource = mapInstance.getSource('bing-satellite-source');
+      if (bingSource) {
+        bingSource.setTiles([bingUrl]);
+      } else {
+        mapInstance.addSource('bing-satellite-source', {
+          type: 'raster',
+          tiles: [bingUrl],
+          tileSize: 256,
+          minzoom: 0,
+          maxzoom: 24,
+          bounds: [88.010, 20.730, 92.680, 26.630] // Approximate bounds of Bangladesh
+        });
+        mapInstance.addLayer({ id: 'bing-satellite-layer', type: 'raster', source: 'bing-satellite-source', paint: { 'raster-resampling': 'nearest' } }, beforeId);
+      }
+    } else {
+      if (mapInstance.getLayer('bing-satellite-layer')) mapInstance.removeLayer('bing-satellite-layer');
+      if (mapInstance.getSource('bing-satellite-source')) mapInstance.removeSource('bing-satellite-source');
+    }
   };
 
   const updateOverlay = (mapInstance, year) => {
     if (!mapInstance) return;
     const sourceId = 'overlay-source'; const layerId = 'overlay-layer';
     const config = getOverlayConfig(year);
+
     if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
     if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
+
     if (!config) return;
+
     mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256, minzoom: 0, maxzoom: 24 });
-    // Insert overlay BELOW institutions layer so pins stay visible
-    const beforeId = mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined;
+    const beforeId = mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
+      (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined);
     mapInstance.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' } }, beforeId);
   };
+
+  const updateCountryBorder = useCallback((mapInstance, currentBasemapType) => {
+    if (!mapInstance) return;
+    const sourceId = 'source-adm0';
+    const layerId = 'layer-adm0';
+    const boundaryColor = currentBasemapType === 'street' ? '#000000' : '#ffffff';
+
+    if (!mapInstance.getSource(sourceId)) {
+      mapInstance.addSource(sourceId, { type: 'geojson', data: '/bgd_admbnda_adm0_bbs_20201113_simplified.json' });
+    }
+
+    if (!mapInstance.getLayer(layerId)) {
+      const beforeId = mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined;
+      mapInstance.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': boundaryColor, 'line-width': 1 }
+      }, beforeId);
+    } else {
+      mapInstance.setPaintProperty(layerId, 'line-color', boundaryColor);
+    }
+  }, []);
 
   const [mapLoaded, setMapLoaded] = useState({ single: false, left: false, right: false });
 
@@ -179,7 +246,7 @@ const MapComponent = () => {
     if (mapRef.current) mapRef.current.remove(); if (compareRef.current) compareRef.current.remove();
     if (mapLeft.current) mapLeft.current.remove(); if (mapRight.current) mapRight.current.remove();
     mapRef.current = null; mapLeft.current = null; mapRight.current = null; compareRef.current = null;
-    const commonOptions = { style: getEmptyStyle(), center: currentCenter, zoom: currentZoom, attributionControl: false };
+    const commonOptions = { style: getEmptyStyle(), center: currentCenter, zoom: currentZoom, attributionControl: false, maxZoom: 24 };
 
     if (isCompareMode) {
       mapLeft.current = new maplibregl.Map({ container: leftContainer.current, ...commonOptions });
@@ -189,39 +256,57 @@ const MapComponent = () => {
 
       const setupLeft = () => {
         setMapLoaded(prev => ({ ...prev, left: true }));
-        updateBasemap(mapLeft.current, "2019");
         updateOverlay(mapLeft.current, "2019");
+        updateBasemap(mapLeft.current, "2019");
+        updateCountryBorder(mapLeft.current, basemapType);
       };
       const setupRight = () => {
         setMapLoaded(prev => ({ ...prev, right: true }));
-        updateBasemap(mapRight.current, "2023");
         updateOverlay(mapRight.current, "2023");
+        updateBasemap(mapRight.current, "2023");
+        updateCountryBorder(mapRight.current, basemapType);
       };
       mapLeft.current.on('load', setupLeft); mapRight.current.on('load', setupRight);
     } else {
       mapRef.current = new maplibregl.Map({ container: singleMapContainer.current, ...commonOptions });
       mapRef.current.on('load', () => {
         setMapLoaded(prev => ({ ...prev, single: true }));
-        updateBasemap(mapRef.current, selectedYear);
         updateOverlay(mapRef.current, selectedYear);
+        updateBasemap(mapRef.current, selectedYear);
+        updateCountryBorder(mapRef.current, basemapType);
       });
     }
 
     setMapsReady(prev => prev + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCompareMode]);
 
   useEffect(() => {
     if (isCompareMode) {
-      if (mapLeft.current && mapLoaded.left) { updateBasemap(mapLeft.current, "2019"); updateOverlay(mapLeft.current, "2019"); }
-      if (mapRight.current && mapLoaded.right) { updateBasemap(mapRight.current, "2023"); updateOverlay(mapRight.current, "2023"); }
+      if (mapLeft.current && mapLoaded.left) { updateOverlay(mapLeft.current, "2019"); }
+      if (mapRight.current && mapLoaded.right) { updateOverlay(mapRight.current, "2023"); }
     } else {
-      if (mapRef.current && mapLoaded.single) { updateBasemap(mapRef.current, selectedYear); updateOverlay(mapRef.current, selectedYear); }
+      if (mapRef.current && mapLoaded.single) { updateOverlay(mapRef.current, selectedYear); }
     }
-  }, [selectedYear, activeLayerName, basemapType, mapLoaded]);
+  }, [selectedYear, activeLayerName, mapLoaded, isCompareMode]);
+
+  useEffect(() => {
+    if (isCompareMode) {
+      if (mapLeft.current && mapLoaded.left) { updateBasemap(mapLeft.current, "2019"); updateCountryBorder(mapLeft.current, basemapType); }
+      if (mapRight.current && mapLoaded.right) { updateBasemap(mapRight.current, "2023"); updateCountryBorder(mapRight.current, basemapType); }
+    } else {
+      if (mapRef.current && mapLoaded.single) { updateBasemap(mapRef.current, selectedYear); updateCountryBorder(mapRef.current, basemapType); }
+    }
+  }, [selectedYear, basemapType, satelliteProvider, mapLoaded, isCompareMode, updateCountryBorder]);
 
   // --- INSTITUTIONS LAYER MANAGEMENT ---
   const addInstitutionsLayer = useCallback((mapInstance) => {
     if (!mapInstance || !institutionsGeoJson) return;
+    if (!mapInstance.isStyleLoaded()) {
+      // Wait for the map to be idle (style loaded + tiles rendered), then try again
+      mapInstance.once('idle', () => addInstitutionsLayer(mapInstance));
+      return;
+    }
     if (mapInstance.getSource('institutions-source')) return; // already added
 
     // Create an SVG pin icon and add it as a map image
@@ -284,8 +369,12 @@ const MapComponent = () => {
 
   const removeInstitutionsLayer = useCallback((mapInstance) => {
     if (!mapInstance) return;
-    if (mapInstance.getLayer('institutions-layer')) mapInstance.removeLayer('institutions-layer');
-    if (mapInstance.getSource('institutions-source')) mapInstance.removeSource('institutions-source');
+    try {
+      if (mapInstance.getLayer('institutions-layer')) mapInstance.removeLayer('institutions-layer');
+      if (mapInstance.getSource('institutions-source')) mapInstance.removeSource('institutions-source');
+    } catch (e) {
+      // Map may have been removed or style not loaded — safe to ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -302,33 +391,43 @@ const MapComponent = () => {
         removeInstitutionsLayer(m);
       }
     });
-  }, [showInstitutions, activeLayerName, isCompareMode, addInstitutionsLayer, removeInstitutionsLayer, mapLoaded]);
+  }, [showInstitutions, activeLayerName, isCompareMode, addInstitutionsLayer, removeInstitutionsLayer, mapLoaded, institutionsGeoJson]);
 
   const getAttributionText = () => {
     if (basemapType === 'street') return BASEMAPS.street.attribution;
-    if (isCompareMode) return `Left: ${BASEMAPS.satellite["2019"].attribution} | Right: ${BASEMAPS.satellite["2023"].attribution}`;
-    return BASEMAPS.satellite[selectedYear]?.attribution || BASEMAPS.satellite["2023"].attribution;
+
+    // Dynamic generation based on selected provider and years
+    if (satelliteProvider === 'bing') {
+      if (isCompareMode) return `Left: © Bing (2019) | Right: © Bing (2023)`;
+      return `© Bing (${selectedYear})`;
+    } else {
+      if (isCompareMode) return `Left: ${BASEMAPS.satellite["2019"].attribution} | Right: ${BASEMAPS.satellite["2023"].attribution}`;
+      return BASEMAPS.satellite[selectedYear]?.attribution || BASEMAPS.satellite["2023"].attribution;
+    }
   };
 
-  // Handle outside clicks for the Year Dropdown
+  // Handle outside clicks for the Dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (yearDropdownRef.current && !yearDropdownRef.current.contains(event.target)) {
         setIsYearDropdownOpen(false);
       }
+      if (providerDropdownRef.current && !providerDropdownRef.current.contains(event.target)) {
+        setIsProviderDropdownOpen(false);
+      }
     };
 
-    if (isYearDropdownOpen) {
+    if (isYearDropdownOpen || isProviderDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isYearDropdownOpen]);
+  }, [isYearDropdownOpen, isProviderDropdownOpen]);
 
   // --- DYNAMIC POSITIONING LOGIC ---
-  const isLeftChartActive = isCompareMode && activeLayerName !== 'brickfield';
+  const isLeftChartActive = isCompareMode && activeLayerName && activeLayerName !== 'brickfield';
   let controlPanelTopClass = 'top-4';
   if (isLeftChartActive) {
     // If Left Chart is visible, push controls down approx 240px
@@ -362,30 +461,18 @@ const MapComponent = () => {
           <div
             className={`absolute left-4 z-20 flex flex-col gap-3 transition-all duration-300 ease-in-out items-start ${controlPanelTopClass}`}
           >
-            {/* Toggle Compare Button */}
-            <button
-              onClick={() => setIsCompareMode(!isCompareMode)}
-              className={`py-2 px-4 rounded-full shadow-md text-sm font-bold transition-all transform hover:scale-105 border ${isCompareMode
-                ? 'bg-white text-red-600 hover:bg-gray-50 border-gray-200'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
-                }`}
-            >
-              {isCompareMode ? "Exit Comparison" : "Compare Years"}
-            </button>
 
-            {/* Year Dropdown Pill */}
+            {/* Combined Year & Provider Dropdown Pill */}
             {!isCompareMode && (
               <div className="bg-white p-1 pr-1.5 rounded-full shadow-md flex items-center gap-1.5 border border-gray-200 transition-all hover:shadow-lg">
                 <span className="pl-2 font-bold text-gray-700 text-sm">Year</span>
                 <div className="relative" ref={yearDropdownRef}>
-                  {/* Custom styled select replacement */}
                   <div
                     className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 cursor-pointer transition-colors hover:border-gray-400 relative"
                     onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
                   >
                     {selectedYear}
 
-                    {/* Dropdown Menu */}
                     <div className={`absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-[14px] shadow-lg overflow-hidden transition-all duration-200 z-50 ${isYearDropdownOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
                       <div
                         className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${selectedYear === "2023" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
@@ -408,14 +495,65 @@ const MapComponent = () => {
                         2019
                       </div>
                     </div>
-
                   </div>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                 </div>
+
+                {/* SATELLITE PROVIDER PART */}
+                {basemapType === 'satellite' && (
+                  <>
+                    <div className="h-5 w-px bg-gray-300 mx-0.5" />
+                    <div className="relative" ref={providerDropdownRef}>
+                      <div
+                        className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 cursor-pointer transition-colors hover:border-gray-400 relative"
+                        onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
+                      >
+                        {satelliteProvider === 'bing' ? 'Bing' : 'Esri'}
+
+                        <div className={`absolute top-full left-0 mt-2 w-[100px] bg-white border border-gray-100 rounded-[14px] shadow-lg overflow-hidden transition-all duration-200 z-50 ${isProviderDropdownOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                          <div
+                            className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${satelliteProvider === "bing" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSatelliteProvider("bing");
+                              setIsProviderDropdownOpen(false);
+                            }}
+                          >
+                            Bing
+                          </div>
+                          <div
+                            className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${satelliteProvider === "esri" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSatelliteProvider("esri");
+                              setIsProviderDropdownOpen(false);
+                            }}
+                          >
+                            Esri
+                          </div>
+                        </div>
+                      </div>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
+
+            {/* Toggle Compare Button */}
+            <button
+              onClick={() => setIsCompareMode(!isCompareMode)}
+              className={`py-2 px-4 rounded-full shadow-md text-sm font-bold transition-all transform hover:scale-105 border ${isCompareMode
+                ? 'bg-white text-red-600 hover:bg-gray-50 border-gray-200'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+                }`}
+            >
+              {isCompareMode ? "Exit Comparison" : "Compare Years"}
+            </button>
 
             {/* INSTITUTIONS TOGGLE (Only for Brickfield) */}
             {activeLayerName === 'brickfield' && (
@@ -444,7 +582,7 @@ const MapComponent = () => {
           </div>
 
           {/* 3. CHARTS */}
-          {activeLayerName !== 'brickfield' && (
+          {activeLayerName && activeLayerName !== 'brickfield' && (
             isCompareMode ? (
               <>
                 <ChartToggleWrapper
@@ -522,6 +660,9 @@ const MapComponent = () => {
             }
             return null;
           })()}
+          showInstitutions={showInstitutions}
+          onToggleInstitutions={() => setShowInstitutions(prev => !prev)}
+          isCompareMode={isCompareMode}
         />
       )}
     </div>

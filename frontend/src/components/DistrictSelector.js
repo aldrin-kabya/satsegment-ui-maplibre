@@ -133,7 +133,7 @@ const DistrictSelector = ({
       map.addLayer({
         id: 'layer-adm2', type: 'line', source: 'source-adm2',
         layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': showAdm2 ? 'visible' : 'none' },
-        paint: { 'line-color': boundaryColor, 'line-width': 3 }
+        paint: { 'line-color': boundaryColor, 'line-width': 2 }
       });
     } else {
       map.setLayoutProperty('layer-adm2', 'visibility', showAdm2 ? 'visible' : 'none');
@@ -146,7 +146,7 @@ const DistrictSelector = ({
       map.addLayer({
         id: 'layer-adm3', type: 'line', source: 'source-adm3',
         layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': !showAdm2 ? 'visible' : 'none' },
-        paint: { 'line-color': boundaryColor, 'line-width': 3 }
+        paint: { 'line-color': boundaryColor, 'line-width': 2 }
       });
     } else {
       map.setLayoutProperty('layer-adm3', 'visibility', !showAdm2 ? 'visible' : 'none');
