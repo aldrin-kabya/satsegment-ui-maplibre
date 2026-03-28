@@ -8,7 +8,7 @@ import '@maplibre/maplibre-gl-compare/dist/maplibre-gl-compare.css';
 import LayerControls from './LayerControls';
 import DistrictSelector from './DistrictSelector';
 import BarChart from './BarChart';
-import BrickfieldChangeMap from './BrickfieldChangeMap';
+import ChangeMap from './ChangeMap';
 import useInstitutions from '../hooks/useInstitutions';
 import '../css/BarChart.css';
 
@@ -203,7 +203,14 @@ const MapComponent = () => {
     mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256, minzoom: 0, maxzoom: 24 });
     const beforeId = mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
       (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined);
-    mapInstance.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' } }, beforeId);
+      
+    mapInstance.addLayer({ 
+      id: layerId, 
+      type: 'raster', 
+      source: sourceId, 
+      layout: { visibility: showChangeMap ? 'none' : 'visible' },
+      paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' } 
+    }, beforeId);
   };
 
   const updateCountryBorder = useCallback((mapInstance, currentBasemapType) => {
@@ -290,6 +297,19 @@ const MapComponent = () => {
     }
   }, [selectedYear, activeLayerName, mapLoaded, isCompareMode]);
 
+  // Hide overlay-layer while Change Map is overlaying the screen
+  useEffect(() => {
+    const activeMaps = isCompareMode
+      ? [mapLeft.current, mapRight.current].filter(Boolean)
+      : [mapRef.current].filter(Boolean);
+
+    activeMaps.forEach(m => {
+      if (m.getLayer('overlay-layer')) {
+        m.setLayoutProperty('overlay-layer', 'visibility', showChangeMap ? 'none' : 'visible');
+      }
+    });
+  }, [showChangeMap, isCompareMode]);
+
   useEffect(() => {
     if (isCompareMode) {
       if (mapLeft.current && mapLoaded.left) { updateBasemap(mapLeft.current, "2019"); updateCountryBorder(mapLeft.current, basemapType); }
@@ -350,7 +370,13 @@ const MapComponent = () => {
         'icon-image': 'institution-pin',
         'icon-size': 1.0,
         'icon-allow-overlap': false,
-        'text-field': ['get', 'name'],
+        'text-field': [
+          'step',
+          ['zoom'],
+          '',
+          16,
+          ['get', 'name']
+        ],
         'text-font': ['Open Sans Regular'],
         'text-size': 11,
         'text-offset': [0, 1.4],
@@ -570,13 +596,13 @@ const MapComponent = () => {
               </div>
             )}
 
-            {/* Show Changes (Only for Brickfield) */}
-            {activeLayerName === 'brickfield' && (
+            {/* LULC Changes Button */}
+            {activeLayerName && activeLayerName !== 'all' && (
               <button
                 onClick={() => setShowChangeMap(true)}
                 className="py-2 px-4 rounded-full shadow-md text-sm font-bold bg-white text-gray-700 hover:bg-gray-50 transition-transform hover:scale-105 border border-gray-200"
               >
-                Show Changes
+                LULC Changes
               </button>
             )}
           </div>
@@ -641,28 +667,33 @@ const MapComponent = () => {
 
       {/* 7. CHANGE MAP OVERLAY */}
       {showChangeMap && (
-        <BrickfieldChangeMap
-          onClose={(finalViewState) => {
-            setShowChangeMap(false);
-            if (finalViewState) {
-              if (isCompareMode) {
-                if (mapLeft.current) mapLeft.current.jumpTo(finalViewState);
-                if (mapRight.current) mapRight.current.jumpTo(finalViewState);
-              } else {
-                if (mapRef.current) mapRef.current.jumpTo(finalViewState);
-              }
-            }
-          }}
-          initialViewState={(() => {
-            const activeMap = mapRef.current || mapLeft.current;
-            if (activeMap) {
-              return { center: activeMap.getCenter(), zoom: activeMap.getZoom() };
-            }
-            return null;
-          })()}
+        <ChangeMap
+          onClose={() => setShowChangeMap(false)}
           showInstitutions={showInstitutions}
           onToggleInstitutions={() => setShowInstitutions(prev => !prev)}
           isCompareMode={isCompareMode}
+          activeLayerName={activeLayerName}
+          onChangeLayer={(layerName) => {
+            if (layerName === 'all') {
+              setActiveLayerName('all');
+              setShowChangeMap(false);
+            } else if (layerName === activeLayerName) {
+              setActiveLayerName(null);
+            } else {
+              setActiveLayerName(layerName);
+            }
+          }}
+          mapInstance={mapRef.current}
+          mapInstanceLeft={mapLeft.current}
+          mapInstanceRight={mapRight.current}
+          basemap={basemapType}
+          setBasemap={setBasemapType}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
+          satelliteProvider={satelliteProvider}
+          setSatelliteProvider={setSatelliteProvider}
+          selectedRegionGeoJson={selectedRegionGeoJson}
+          setSelectedRegionGeoJson={setSelectedRegionGeoJson}
         />
       )}
     </div>

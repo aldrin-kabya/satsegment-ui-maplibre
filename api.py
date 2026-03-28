@@ -117,6 +117,46 @@ def render_change_tile_internal(b19, b23, l19, l23):
     image.save(buffer, format="PNG")
     return buffer.getvalue()
 
+def render_lulc_change_tile_internal(target_id, l19, l23):
+    l19 = safe_convert(l19)
+    l23 = safe_convert(l23)
+
+    height, width = l19.shape
+    img = np.zeros((height, width, 4), dtype=np.uint8)
+    
+    is_target_19 = l19 == target_id
+    is_target_23 = l23 == target_id
+    
+    # 1. UNCHANGED (Grey)
+    mask_unchanged = is_target_19 & is_target_23
+    img[mask_unchanged] = (*GREY, 255)
+    
+    # 2. LOST (Target -> Other LULC)
+    mask_lost = is_target_19 & (~is_target_23)
+    
+    for cls_id, rgb in COLORS.items():
+        if cls_id == target_id: continue
+        class_mask = mask_lost & (l23 == cls_id)
+        img[class_mask] = (*rgb, 255)
+
+    # 3. GAINED (Other LULC -> Target)
+    mask_gained = (~is_target_19) & is_target_23
+    
+    y_indices, x_indices = np.indices((int(height), int(width)))
+    stripe_mask = (x_indices + y_indices) % 8 < 3
+    
+    for cls_id, rgb in COLORS.items():
+        if cls_id == target_id: continue
+        class_mask = mask_gained & (l19 == cls_id)
+        img[class_mask] = (*rgb, 255)
+        # Apply Stripes
+        img[class_mask & stripe_mask] = (255, 255, 255, 255)
+
+    image = Image.fromarray(img)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
 # --- ENDPOINTS ---
 
 # --- 3. NEW: BRICKFIELD CHANGE DETECTION TILE ---
@@ -161,6 +201,42 @@ def brickfield_change(z: int, x: int, y: int):
 
         # 3. Render
         png_bytes = render_change_tile_internal(b19, b23, l19, l23)
+        return Response(content=png_bytes, media_type="image/png")
+
+    except Exception as e:
+        print(f"Error in tile {z}/{x}/{y}: {e}")
+        empty = np.zeros((256, 256, 4), dtype=np.uint8)
+        img = Image.fromarray(empty)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return Response(content=buf.getvalue(), media_type="image/png")
+
+@app.get("/lulc_change/{target_id}/{z}/{x}/{y}.png")
+def lulc_change(target_id: int, z: int, x: int, y: int):
+    try:
+        def get_data(path, name):
+            try:
+                with COGReader(path) as src:
+                    img = src.tile(x, y, z)
+                    return img.data[0]
+            except Exception as e:
+                print(f"Read Error {name}: {e}")
+                return np.zeros((256, 256), dtype=np.uint8)
+
+        l19_raw = get_data(PATHS["l19"], "l19")
+        l23_raw = get_data(PATHS["l23"], "l23")
+        
+        l19 = safe_convert(l19_raw)
+        l23 = safe_convert(l23_raw)
+
+        if np.max(l19) == 0 and np.max(l23) == 0:
+             empty = np.zeros((256, 256, 4), dtype=np.uint8)
+             img = Image.fromarray(empty)
+             buf = io.BytesIO()
+             img.save(buf, format="PNG")
+             return Response(content=buf.getvalue(), media_type="image/png")
+
+        png_bytes = render_lulc_change_tile_internal(target_id, l19, l23)
         return Response(content=png_bytes, media_type="image/png")
 
     except Exception as e:
