@@ -7,13 +7,13 @@ import useInstitutions from '../hooks/useInstitutions';
 import LayerControls from './LayerControls';
 
 
-const ChangeMap = ({ 
-  onClose, 
-  showInstitutions, 
-  onToggleInstitutions, 
+const ChangeMap = ({
+  onClose,
+  showInstitutions,
+  onToggleInstitutions,
   isCompareMode,
   setIsCompareMode,
-  activeLayerName, 
+  activeLayerName,
   setActiveLayerName,
   onChangeLayer,
   onGoHome,
@@ -57,7 +57,7 @@ const ChangeMap = ({
 
     const applyChangeLayer = (mapIns) => {
       if (!isActive) return;
-      
+
       // Remove the old layer to prevent bleeding through and show instantaneous updates.
       if (mapIns.getLayer('change-layer')) mapIns.removeLayer('change-layer');
       if (mapIns.getSource('change-source')) mapIns.removeSource('change-source');
@@ -102,7 +102,7 @@ const ChangeMap = ({
         try {
           if (m.getLayer('change-layer')) m.removeLayer('change-layer');
           if (m.getSource('change-source')) m.removeSource('change-source');
-        } catch(e) {}
+        } catch (e) { }
       });
     };
   }, [changeTileUrl, isCompareMode, mapInstance, mapInstanceLeft, mapInstanceRight]);
@@ -113,7 +113,7 @@ const ChangeMap = ({
     <div className="fixed inset-0 z-[5000] bg-transparent flex flex-col pointer-events-none">
       {/* Container wrapper must allow pointer events through to the map.
           All interactive sub-elements must have pointer-events-auto */}
-          
+
 
 
 
@@ -122,46 +122,49 @@ const ChangeMap = ({
 
       {/* LEGEND - TOP RIGHT */}
       {activeLayerName && (
-        <div className="absolute top-4 right-4 z-10 bg-white/85 backdrop-blur-md p-3.5 rounded-3xl shadow-md border border-gray-100 flex flex-col gap-3.5 pointer-events-auto" style={{ maxWidth: '240px', maxHeight: '90vh', overflowY: 'auto' }}>
-          <h4 className="font-bold text-[15px] text-gray-800 border-b pb-1.5 text-center">Change Legend</h4>
+        <div className="absolute top-4 right-4 z-10 bg-white/85 backdrop-blur-md px-5 pt-3.5 pb-6 rounded-[19px] shadow-md border border-gray-100 flex flex-col gap-2 pointer-events-auto" style={{ maxWidth: '240px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="border-b pb-1.5 text-center">
+            <h4 className="font-bold text-[15px] text-gray-800">Change Legend</h4>
+            <p className="text-[15px] text-gray-800 font-bold">{activeLayerName === 'brickfield' ? 'Brickfield' : activeLayerName.charAt(0).toUpperCase() + activeLayerName.slice(1)}</p>
+          </div>
 
           {/* Unchanged */}
-          <div className="flex items-center gap-2.5">
-            <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(128, 128, 128)' }}></span>
-            <span className="text-[13px] text-gray-700">Unchanged {activeLayerName === 'brickfield' ? 'Brickfield' : activeLayerName.charAt(0).toUpperCase() + activeLayerName.slice(1)}</span>
+          <div className="flex items-center gap-2.5 pl-1">
+            <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ backgroundColor: 'rgb(128, 128, 128)' }}></span>
+            <span className="text-[13px] text-gray-700">Unchanged</span>
           </div>
 
           {/* LOST Section */}
-          <div>
+          <div className="mt-1">
             <h5 className="text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Lost (Became...)</h5>
             <div className="space-y-1.5 pl-1">
               {activeLayerName !== 'forest' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(0, 255, 255)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ backgroundColor: 'rgb(0, 255, 255)' }}></span>
                   <span className="text-[13px] text-gray-700">Forest</span>
                 </div>
               )}
               {activeLayerName !== 'built-up' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></span>
                   <span className="text-[13px] text-gray-700">Built-up</span>
                 </div>
               )}
               {activeLayerName !== 'water' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></span>
                   <span className="text-[13px] text-gray-700">Water</span>
                 </div>
               )}
               {activeLayerName !== 'farmland' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></span>
                   <span className="text-[13px] text-gray-700">Farmland</span>
                 </div>
               )}
               {activeLayerName !== 'meadow' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></span>
                   <span className="text-[13px] text-gray-700">Meadow</span>
                 </div>
               )}
@@ -169,36 +172,36 @@ const ChangeMap = ({
           </div>
 
           {/* GAINED Section */}
-          <div>
+          <div className="mt-1">
             <h5 className="text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Gained (From...)</h5>
             <div className="space-y-1.5 pl-1">
               {activeLayerName !== 'forest' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 255), rgb(0, 255, 255) 3px, #fff 3px, #fff 5px)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 255), rgb(0, 255, 255) 3px, #fff 3px, #fff 5px)' }}></span>
                   <span className="text-[13px] text-gray-700">Forest</span>
                 </div>
               )}
               {activeLayerName !== 'built-up' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 0, 0), rgb(255, 0, 0) 3px, #fff 3px, #fff 5px)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 0, 0), rgb(255, 0, 0) 3px, #fff 3px, #fff 5px)' }}></span>
                   <span className="text-[13px] text-gray-700">Built-up</span>
                 </div>
               )}
               {activeLayerName !== 'water' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 0, 255), rgb(0, 0, 255) 3px, #fff 3px, #fff 5px)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 0, 255), rgb(0, 0, 255) 3px, #fff 3px, #fff 5px)' }}></span>
                   <span className="text-[13px] text-gray-700">Water</span>
                 </div>
               )}
               {activeLayerName !== 'farmland' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 0), rgb(0, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(0, 255, 0), rgb(0, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
                   <span className="text-[13px] text-gray-700">Farmland</span>
                 </div>
               )}
               {activeLayerName !== 'meadow' && (
                 <div className="flex items-center gap-2.5">
-                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[2px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 255, 0), rgb(255, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
+                  <span className="w-[18px] h-[18px] block border border-gray-300 rounded-[4px]" style={{ background: 'repeating-linear-gradient(-45deg, rgb(255, 255, 0), rgb(255, 255, 0) 3px, #fff 3px, #fff 5px)' }}></span>
                   <span className="text-[13px] text-gray-700">Meadow</span>
                 </div>
               )}

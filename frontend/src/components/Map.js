@@ -21,7 +21,7 @@ const ChartToggleWrapper = ({ isVisible, toggleVisibility, positionClass, showMi
         {children}
         <button
           onClick={toggleVisibility}
-          className="absolute top-3 right-3 w-5 h-5 bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold text-xs transition-colors"
+          className="absolute top-3 right-3 w-5 h-5 bg-transparent hover:bg-gray-200 text-gray-500 hover:text-red-500 rounded-full flex items-center justify-center font-bold text-xs transition-colors"
           title="Minimize"
         >
           ✕
@@ -463,6 +463,7 @@ const MapComponent = () => {
         activeLayerName={activeLayerName}
         setActiveLayerName={setActiveLayerName}
         basemapType={basemapType}
+        setBasemapType={setBasemapType}
         setShowChangeMap={setShowChangeMap}
         onGoHome={() => {
           if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();

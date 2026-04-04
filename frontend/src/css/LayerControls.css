@@ -8,6 +8,7 @@
   z-index: 10004;
   display: flex;
   align-items: center;
+  pointer-events: none;
 }
 
 /* block start: main button for toggling base map type */
@@ -23,6 +24,7 @@
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   z-index: 2; 
+  pointer-events: auto;
 }
 
 .map-type-button:hover {
@@ -42,6 +44,7 @@
   margin-left: 10px;
   padding-left: 10px;
   padding-right: 10px;
+  position: relative; /* for bridge */
   opacity: 0;
   transform: translateX(-10px);
   pointer-events: none;
@@ -53,6 +56,16 @@
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
+}
+
+/* bridge the 10px gap between button and panel */
+.layer-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -10px;
+  width: 10px;
+  height: 100%;
 }
 /* block end: hover-reveal panel for LULC layers */
 

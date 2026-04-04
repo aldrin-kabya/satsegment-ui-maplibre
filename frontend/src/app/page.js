@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 const Map = dynamic(() => import('../components/Map'), {
   ssr: false, // This tells Next.js: "Do not run this on the server"
   loading: () => (
-    <div className="flex items-center justify-center w-full h-screen bg-gradient-to-br from-blue-50 to-gray-100">
+    <div className="flex items-center justify-center w-full h-screen bg-white">
       <div className="flex flex-col items-center gap-4">
         {/* Spinner Animation */}
         <div className="relative w-16 h-16">

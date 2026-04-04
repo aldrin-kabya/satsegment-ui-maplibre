@@ -4,11 +4,11 @@ import '../css/Sidebar.css';
 const Icons = {
   Hamburger: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>),
   Home: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>),
-  Year: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2"></rect><line x1="16" y1="2" x2="16" y2="6" strokeWidth="2"></line><line x1="8" y1="2" x2="8" y2="6" strokeWidth="2"></line><line x1="3" y1="10" x2="21" y2="10" strokeWidth="2"></line></svg>),
+  Year: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>),
   Satellite: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 7 9 3 5 7l4 4"></path><path d="m17 11 4 4-4 4-4-4"></path><path d="m8 12 4 4 6-6-4-4Z"></path><path d="m16 8 3-3"></path><path d="M9 21a6 6 0 0 0-6-6"></path></svg>),
-  Compare: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth="2"></rect><line x1="12" y1="3" x2="12" y2="21" strokeWidth="2"></line></svg>),
-  Institution: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18" strokeWidth="2"></path><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" strokeWidth="2"></path><path d="M9 10h6" strokeWidth="2"></path><path d="M9 14h6" strokeWidth="2"></path><path d="M9 7h6" strokeWidth="2"></path></svg>),
-  LulcChanges: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeWidth="2"></polyline></svg>)
+  Compare: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>),
+  Institution: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7 12 2"></polygon></svg>),
+  LulcChanges: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"></path><path d="M20 7H4"></path><path d="m8 21-4-4 4-4"></path><path d="M4 17h16"></path></svg>)
 };
 
 const Sidebar = ({
@@ -24,6 +24,7 @@ const Sidebar = ({
   activeLayerName,
   setActiveLayerName,
   basemapType,
+  setBasemapType,
   setShowChangeMap,
   onGoHome
 }) => {
@@ -102,9 +103,11 @@ const Sidebar = ({
       </div>
 
       {/* Year Selector */}
-      {basemapType === 'satellite' && (
-        <div className={`sidebar-item-wrapper ${openDropdown === 'year' ? 'force-expand' : ''}`} ref={yearWrapperRef}>
-          <button className="sidebar-btn-reset sidebar-button" onClick={() => toggleDropdown('year')}>
+      <div className={`sidebar-item-wrapper ${openDropdown === 'year' ? 'force-expand' : ''}`} ref={yearWrapperRef}>
+        <button 
+          className="sidebar-btn-reset sidebar-button" 
+          onClick={() => toggleDropdown('year')}
+        >
             <Icons.Year />
             <span className="sidebar-text">Year</span>
             <div className="dropdown-anchor">
@@ -122,13 +125,14 @@ const Sidebar = ({
               </div>
             </div>
           </button>
-        </div>
-      )}
+      </div>
 
       {/* Satellite Provider */}
-      {basemapType === 'satellite' && (
-        <div className={`sidebar-item-wrapper ${openDropdown === 'provider' ? 'force-expand' : ''}`} ref={providerWrapperRef}>
-          <button className="sidebar-btn-reset sidebar-button" onClick={() => toggleDropdown('provider')}>
+      <div className={`sidebar-item-wrapper ${openDropdown === 'provider' ? 'force-expand' : ''}`} ref={providerWrapperRef}>
+        <button 
+          className="sidebar-btn-reset sidebar-button" 
+          onClick={() => toggleDropdown('provider')}
+        >
             <Icons.Satellite />
             <span className="sidebar-text">Satellite</span>
             <div className="dropdown-anchor">
@@ -141,7 +145,13 @@ const Sidebar = ({
                   <div
                     key={prov}
                     className={`dropdown-item ${satelliteProvider === prov ? 'selected' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setSatelliteProvider(prov); setOpenDropdown(null); handleAction(); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setSatelliteProvider(prov); 
+                      if (setBasemapType) setBasemapType('satellite'); // Switch to satellite if OSM was selected
+                      setOpenDropdown(null); 
+                      handleAction(); 
+                    }}
                   >
                     {prov === 'bing' ? 'Bing' : 'Esri'}
                   </div>
@@ -149,21 +159,18 @@ const Sidebar = ({
               </div>
             </div>
           </button>
-        </div>
-      )}
+      </div>
 
       {/* Compare Years */}
-      {basemapType === 'satellite' && (
-        <div className={`sidebar-item-wrapper ${isCompareMode ? 'force-expand' : ''}`}>
-          <button 
-            className={`sidebar-btn-reset sidebar-button ${isCompareMode ? 'active' : ''}`} 
-            onClick={() => { setIsCompareMode(!isCompareMode); handleAction(); }}
-          >
+      <div className={`sidebar-item-wrapper ${isCompareMode ? 'force-expand' : ''}`}>
+        <button 
+          className={`sidebar-btn-reset sidebar-button ${isCompareMode ? 'active' : ''}`} 
+          onClick={() => { setIsCompareMode(!isCompareMode); handleAction(); }}
+        >
             <Icons.Compare />
             <span className="sidebar-text">Compare</span>
           </button>
-        </div>
-      )}
+      </div>
 
       {/* LULC Changes */}
       <div className="sidebar-item-wrapper">
