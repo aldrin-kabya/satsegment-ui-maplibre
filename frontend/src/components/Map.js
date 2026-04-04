@@ -10,6 +10,7 @@ import DistrictSelector from './DistrictSelector';
 import BarChart from './BarChart';
 import ChangeMap from './ChangeMap';
 import useInstitutions from '../hooks/useInstitutions';
+import Sidebar from './Sidebar';
 import '../css/BarChart.css';
 
 // --- SUB-COMPONENT: Chart Toggle Container ---
@@ -34,7 +35,7 @@ const ChartToggleWrapper = ({ isVisible, toggleVisibility, positionClass, showMi
   return (
     <button
       onClick={toggleVisibility}
-      className={`absolute z-[10001] bg-white px-3 py-2 rounded-full shadow-md hover:bg-gray-50 border border-gray-200 transition-all flex items-center justify-center gap-2 ${positionClass}`}
+      className={`absolute z-[10001] bg-white/85 backdrop-blur-md px-3 py-2 rounded-full shadow-md hover:bg-white/95 border border-gray-200 transition-all flex items-center justify-center gap-2 ${positionClass}`}
       style={{ width: 'auto', height: 'auto' }}
       title="Show Statistics"
     >
@@ -59,6 +60,7 @@ const MapComponent = () => {
   const mapLeft = useRef(null);
   const mapRight = useRef(null);
   const compareRef = useRef(null);
+  const districtSelectorRef = useRef(null);
 
   // --- CONFIGURATION ---
   const API_URL = "http://103.81.70.74:8000";
@@ -98,12 +100,6 @@ const MapComponent = () => {
 
   // Toggle for the full-screen Change Map
   const [showChangeMap, setShowChangeMap] = useState(false);
-
-  const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
-  const yearDropdownRef = useRef(null);
-
-  const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
-  const providerDropdownRef = useRef(null);
 
   // Institutions layer
   const institutionsGeoJson = useInstitutions();
@@ -201,8 +197,9 @@ const MapComponent = () => {
     if (!config) return;
 
     mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256, minzoom: 0, maxzoom: 24 });
-    const beforeId = mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
-      (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined);
+    const beforeId = mapInstance.getLayer('layer-mask') ? 'layer-mask' :
+      (mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
+        (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined));
       
     mapInstance.addLayer({ 
       id: layerId, 
@@ -242,8 +239,6 @@ const MapComponent = () => {
   // ... (keep existing code)
 
   useEffect(() => {
-    if (showChangeMap) return;
-
     // Reset loaded state when recompiling maps
     setMapLoaded({ single: false, left: false, right: false });
 
@@ -404,7 +399,7 @@ const MapComponent = () => {
   }, []);
 
   useEffect(() => {
-    const shouldShow = showInstitutions && activeLayerName === 'brickfield';
+    const shouldShow = showInstitutions;
     const activeMaps = isCompareMode
       ? [mapLeft.current, mapRight.current]
       : [mapRef.current];
@@ -432,34 +427,7 @@ const MapComponent = () => {
     }
   };
 
-  // Handle outside clicks for the Dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (yearDropdownRef.current && !yearDropdownRef.current.contains(event.target)) {
-        setIsYearDropdownOpen(false);
-      }
-      if (providerDropdownRef.current && !providerDropdownRef.current.contains(event.target)) {
-        setIsProviderDropdownOpen(false);
-      }
-    };
 
-    if (isYearDropdownOpen || isProviderDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isYearDropdownOpen, isProviderDropdownOpen]);
-
-  // --- DYNAMIC POSITIONING LOGIC ---
-  const isLeftChartActive = isCompareMode && activeLayerName && activeLayerName !== 'brickfield';
-  let controlPanelTopClass = 'top-4';
-  if (isLeftChartActive) {
-    // If Left Chart is visible, push controls down approx 240px
-    // If Left Chart is minimized (hidden), buttons return to top-4 default
-    controlPanelTopClass = isChartVisible ? 'top-[210px]' : 'top-4';
-  }
 
   // --- CONDITIONAL RENDER: CHANGE MAP ---
   // BrickfieldChangeMap is now rendered as an overlay at the end of the return statement
@@ -468,145 +436,43 @@ const MapComponent = () => {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
 
-      {/* UI LAYERS (Hidden when Change Map is valid) */}
+      {/* 1. DISTRICT SELECTOR (ALWAYS VISIBLE) */}
+      <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-[10005] pointer-events-auto">
+        <DistrictSelector
+          ref={districtSelectorRef}
+          mapInstance={isCompareMode ? mapLeft.current : mapRef.current}
+          mapInstanceRight={isCompareMode ? mapRight.current : null}
+          isCompareMode={isCompareMode}
+          mapView={basemapType}
+          activeLulcLayer={activeLayerName}
+          onSelectRegion={setSelectedRegionGeoJson} // Connected for stats
+        />
+      </div>
+
+      {/* 2. SIDEBAR (always rendered to preserve pin state) */}
+      <Sidebar 
+        inChangeMap={showChangeMap}
+        isCompareMode={isCompareMode}
+        setIsCompareMode={setIsCompareMode}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        satelliteProvider={satelliteProvider}
+        setSatelliteProvider={setSatelliteProvider}
+        showInstitutions={showInstitutions}
+        onToggleInstitutions={() => setShowInstitutions(prev => !prev)}
+        activeLayerName={activeLayerName}
+        setActiveLayerName={setActiveLayerName}
+        basemapType={basemapType}
+        setShowChangeMap={setShowChangeMap}
+        onGoHome={() => {
+          if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();
+          setShowInstitutions(false);
+        }}
+      />
+
+      {/* UI LAYERS (Hidden when Change Map is active) */}
       {!showChangeMap && (
         <>
-          {/* 1. DISTRICT SELECTOR */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
-            <DistrictSelector
-              mapInstance={isCompareMode ? mapLeft.current : mapRef.current}
-              mapInstanceRight={isCompareMode ? mapRight.current : null}
-              isCompareMode={isCompareMode}
-              mapView={basemapType}
-              activeLulcLayer={activeLayerName}
-              onSelectRegion={setSelectedRegionGeoJson} // Connected for stats
-            />
-          </div>
-
-          {/* 2. FLOATING BUTTONS (No white box container) */}
-          <div
-            className={`absolute left-4 z-20 flex flex-col gap-3 transition-all duration-300 ease-in-out items-start ${controlPanelTopClass}`}
-          >
-
-            {/* Combined Year & Provider Dropdown Pill */}
-            {!isCompareMode && (
-              <div className="bg-white p-1 pr-1.5 rounded-full shadow-md flex items-center gap-1.5 border border-gray-200 transition-all hover:shadow-lg">
-                <span className="pl-2 font-bold text-gray-700 text-sm">Year</span>
-                <div className="relative" ref={yearDropdownRef}>
-                  <div
-                    className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 cursor-pointer transition-colors hover:border-gray-400 relative"
-                    onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
-                  >
-                    {selectedYear}
-
-                    <div className={`absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-[14px] shadow-lg overflow-hidden transition-all duration-200 z-50 ${isYearDropdownOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
-                      <div
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${selectedYear === "2023" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedYear("2023");
-                          setIsYearDropdownOpen(false);
-                        }}
-                      >
-                        2023
-                      </div>
-                      <div
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${selectedYear === "2019" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedYear("2019");
-                          setIsYearDropdownOpen(false);
-                        }}
-                      >
-                        2019
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
-
-                {/* SATELLITE PROVIDER PART */}
-                {basemapType === 'satellite' && (
-                  <>
-                    <div className="h-5 w-px bg-gray-300 mx-0.5" />
-                    <div className="relative" ref={providerDropdownRef}>
-                      <div
-                        className="appearance-none bg-white border border-gray-300 rounded-full py-1 pl-3 pr-8 font-bold text-sm text-gray-800 cursor-pointer transition-colors hover:border-gray-400 relative"
-                        onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-                      >
-                        {satelliteProvider === 'bing' ? 'Bing' : 'Esri'}
-
-                        <div className={`absolute top-full left-0 mt-2 w-[100px] bg-white border border-gray-100 rounded-[14px] shadow-lg overflow-hidden transition-all duration-200 z-50 ${isProviderDropdownOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
-                          <div
-                            className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${satelliteProvider === "bing" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSatelliteProvider("bing");
-                              setIsProviderDropdownOpen(false);
-                            }}
-                          >
-                            Bing
-                          </div>
-                          <div
-                            className={`px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-bold transition-colors ${satelliteProvider === "esri" ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSatelliteProvider("esri");
-                              setIsProviderDropdownOpen(false);
-                            }}
-                          >
-                            Esri
-                          </div>
-                        </div>
-                      </div>
-                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-600">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Toggle Compare Button */}
-            <button
-              onClick={() => setIsCompareMode(!isCompareMode)}
-              className={`py-2 px-4 rounded-full shadow-md text-sm font-bold transition-all transform hover:scale-105 border ${isCompareMode
-                ? 'bg-white text-red-600 hover:bg-gray-50 border-gray-200'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
-                }`}
-            >
-              {isCompareMode ? "Exit Comparison" : "Compare Years"}
-            </button>
-
-            {/* INSTITUTIONS TOGGLE (Only for Brickfield) */}
-            {activeLayerName === 'brickfield' && (
-              <div className="flex items-center gap-2 bg-white pl-3 pr-3 py-1.5 rounded-full shadow-md border border-gray-200">
-                <span className="text-sm font-bold text-gray-700">Institutions</span>
-                <button
-                  onClick={() => setShowInstitutions(prev => !prev)}
-                  className={`relative w-10 h-[22px] rounded-full transition-colors duration-200 ${showInstitutions ? 'bg-red-500' : 'bg-gray-300'}`}
-                  role="switch"
-                  aria-checked={showInstitutions}
-                >
-                  <span className={`absolute top-[2px] left-[2px] w-[18px] h-[18px] bg-white rounded-full shadow transition-transform duration-200 ${showInstitutions ? 'translate-x-[18px]' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            )}
-
-            {/* LULC Changes Button */}
-            {activeLayerName && activeLayerName !== 'all' && (
-              <button
-                onClick={() => setShowChangeMap(true)}
-                className="py-2 px-4 rounded-full shadow-md text-sm font-bold bg-white text-gray-700 hover:bg-gray-50 transition-transform hover:scale-105 border border-gray-200"
-              >
-                LULC Changes
-              </button>
-            )}
-          </div>
-
           {/* 3. CHARTS */}
           {activeLayerName && activeLayerName !== 'brickfield' && (
             isCompareMode ? (
@@ -672,7 +538,9 @@ const MapComponent = () => {
           showInstitutions={showInstitutions}
           onToggleInstitutions={() => setShowInstitutions(prev => !prev)}
           isCompareMode={isCompareMode}
+          setIsCompareMode={setIsCompareMode}
           activeLayerName={activeLayerName}
+          setActiveLayerName={setActiveLayerName}
           onChangeLayer={(layerName) => {
             if (layerName === 'all') {
               setActiveLayerName('all');
@@ -694,6 +562,10 @@ const MapComponent = () => {
           setSatelliteProvider={setSatelliteProvider}
           selectedRegionGeoJson={selectedRegionGeoJson}
           setSelectedRegionGeoJson={setSelectedRegionGeoJson}
+          onGoHome={() => {
+             if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();
+             setShowInstitutions(false);
+          }}
         />
       )}
     </div>

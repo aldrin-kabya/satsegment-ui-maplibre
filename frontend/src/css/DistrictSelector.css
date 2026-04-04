@@ -12,8 +12,9 @@
 
 .selector-button {
   width: 100%;
-  padding: 12px 16px;
-  background: white;
+  padding: 12px 16px 12px 24px;
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
   border: 1px solid #e0e0e0;
   border-radius: 50px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -79,7 +80,8 @@
   width: 100%; /* Matches container width */
   height: 400px;
   
-  background: white;
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
   border-radius: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   display: flex; 
@@ -97,21 +99,21 @@
 
 .district-column {
   border-right: 1px solid #f0f0f0;
-  background-color: #fff;
+  background-color: transparent;
 }
 
 .upazila-column {
-  background-color: #fafafa;
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .column-header {
-  padding: 12px;
+  padding: 12px 12px 12px 22px;
   font-weight: bold;
   font-size: 13px;
   text-transform: uppercase;
   color: #888;
   border-bottom: 1px solid #f0f0f0;
-  background: white;
+  background: transparent;
 }
 
 .list-wrapper {
@@ -132,7 +134,7 @@
 }
 
 .list-item {
-  padding: 8px 14px;
+  padding: 8px 14px 8px 22px;
   cursor: pointer;
   font-size: 14px;
   color: #333;
@@ -143,8 +145,8 @@
 }
 
 .list-item:hover, .list-item.hovered {
-  background-color: #eeffff;
-  color: #0077aa;
+  background-color: #f3f4f6;
+  color: #2563eb;
 }
 
 .list-item .arrow {
@@ -168,7 +170,7 @@
   }
 
   .selector-button {
-    padding: 10px 12px;
+    padding: 10px 12px 10px 20px;
     font-size: 14px;
   }
 
@@ -178,8 +180,12 @@
     height: 320px;
   }
 
+  .column-header {
+    padding: 8px 12px 8px 18px;
+  }
+
   .list-item {
-    padding: 6px 12px;
+    padding: 6px 12px 6px 18px;
     font-size: 13px;
   }
 }

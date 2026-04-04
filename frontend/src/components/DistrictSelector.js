@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import bbox from '@turf/bbox';
 import '../css/DistrictSelector.css';
 
-const DistrictSelector = ({
+const DistrictSelector = forwardRef(({
   mapInstance,
   mapInstanceRight,
   isCompareMode,
   mapView,
   activeLulcLayer,
   onSelectRegion
-}) => {
+}, ref) => {
   const [geoDataADM3, setGeoDataADM3] = useState(null); // Upazilas
   const [geoDataADM2, setGeoDataADM2] = useState(null); // Districts
 
@@ -133,7 +133,8 @@ const DistrictSelector = ({
       map.addLayer({
         id: 'layer-adm2', type: 'line', source: 'source-adm2',
         layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': showAdm2 ? 'visible' : 'none' },
-        paint: { 'line-color': boundaryColor, 'line-width': 2 }
+        paint: { 'line-color': boundaryColor, 'line-width': 2 },
+        filter: ['==', 'ADM2_EN', showAdm2 ? selectedLabel : '']
       });
     } else {
       map.setLayoutProperty('layer-adm2', 'visibility', showAdm2 ? 'visible' : 'none');
@@ -146,7 +147,8 @@ const DistrictSelector = ({
       map.addLayer({
         id: 'layer-adm3', type: 'line', source: 'source-adm3',
         layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': !showAdm2 ? 'visible' : 'none' },
-        paint: { 'line-color': boundaryColor, 'line-width': 2 }
+        paint: { 'line-color': boundaryColor, 'line-width': 2 },
+        filter: ['all', ['==', 'ADM3_EN', !showAdm2 ? selectedLabel : ''], ['==', 'ADM2_EN', selectedDistrict || '']]
       });
     } else {
       map.setLayoutProperty('layer-adm3', 'visibility', !showAdm2 ? 'visible' : 'none');
@@ -157,11 +159,12 @@ const DistrictSelector = ({
       }
     }
 
-    // Force active layer to top
+    // Force active layer to proper order
     try {
-      if (map.getLayer('layer-mask')) map.moveLayer('layer-mask');
-      if (showAdm2) map.moveLayer('layer-adm2');
-      else map.moveLayer('layer-adm3');
+      const beforeId = map.getLayer('institutions-layer') ? 'institutions-layer' : undefined;
+      if (map.getLayer('layer-mask')) map.moveLayer('layer-mask', beforeId);
+      if (showAdm2 && map.getLayer('layer-adm2')) map.moveLayer('layer-adm2', beforeId);
+      if (!showAdm2 && map.getLayer('layer-adm3')) map.moveLayer('layer-adm3', beforeId);
     } catch (e) { }
 
   }, [geoDataADM2, geoDataADM3, selectedLabel, selectedType, selectedDistrict, boundaryColor]);
@@ -170,16 +173,14 @@ const DistrictSelector = ({
   // --- PERSISTENCE ---
   useEffect(() => {
     const maps = [mapInstance, mapInstanceRight].filter(Boolean);
-    const handleStyleData = (e) => { if (selectedLabel) renderBoundary(e.target); };
 
     maps.forEach(map => {
-      if (map.isStyleLoaded() || map.loaded()) renderBoundary(map);
-      else map.once('load', () => renderBoundary(map));
-      map.on('styledata', handleStyleData);
+      try {
+        if (map.isStyleLoaded()) renderBoundary(map);
+        else map.once('idle', () => renderBoundary(map));
+      } catch (e) { }
     });
-
-    return () => { maps.forEach(map => map.off('styledata', handleStyleData)); };
-  }, [mapInstance, mapInstanceRight, renderBoundary, selectedLabel]);
+  }, [mapInstance, mapInstanceRight, renderBoundary]);
 
 
   // --- HIGHLIGHT REGION (UPDATED LOGIC) ---
@@ -242,6 +243,10 @@ const DistrictSelector = ({
     if (isCompareMode) remove(mapInstanceRight);
   };
 
+  useImperativeHandle(ref, () => ({
+    clearSelection: () => handleClearSelection({ stopPropagation: () => {} })
+  }));
+
   // Auto Scroll
   useEffect(() => {
     if (isOpen) {
@@ -301,6 +306,6 @@ const DistrictSelector = ({
       )}
     </div>
   );
-};
+});
 
 export default DistrictSelector;
