@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import '../css/LayerControls.css';
+import OpacitySlider from './OpacitySlider';
 import DistrictSelector from './DistrictSelector';
 import useInstitutions from '../hooks/useInstitutions';
 import LayerControls from './LayerControls';
@@ -27,7 +28,10 @@ const ChangeMap = ({
   satelliteProvider,
   setSatelliteProvider,
   selectedRegionGeoJson,
-  setSelectedRegionGeoJson
+  setSelectedRegionGeoJson,
+  changeOpacity = 0.6,
+  onChangeOpacityChange,
+  defaultChangeOpacity = 0.6
 }) => {
 
   // Institutions layer
@@ -72,7 +76,8 @@ const ChangeMap = ({
         });
 
         let beforeId = undefined;
-        if (mapIns.getLayer('layer-mask')) beforeId = 'layer-mask';
+        if (mapIns.getLayer('layer-draw-mask')) beforeId = 'layer-draw-mask';
+        else if (mapIns.getLayer('layer-mask')) beforeId = 'layer-mask';
         else if (mapIns.getLayer('layer-adm0')) beforeId = 'layer-adm0';
         else if (mapIns.getLayer('institutions-layer')) beforeId = 'institutions-layer';
         mapIns.addLayer({
@@ -81,7 +86,7 @@ const ChangeMap = ({
           source: 'change-source',
           paint: {
             'raster-resampling': 'nearest',
-            'raster-opacity': 0.6
+            'raster-opacity': changeOpacity
           }
         }, beforeId);
       }
@@ -106,6 +111,19 @@ const ChangeMap = ({
       });
     };
   }, [changeTileUrl, isCompareMode, mapInstance, mapInstanceLeft, mapInstanceRight]);
+
+  // Live-update change-layer opacity when slider moves
+  useEffect(() => {
+    const activeMaps = isCompareMode
+      ? [mapInstanceLeft, mapInstanceRight].filter(Boolean)
+      : [mapInstance].filter(Boolean);
+
+    activeMaps.forEach(m => {
+      if (m.getLayer && m.getLayer('change-layer')) {
+        m.setPaintProperty('change-layer', 'raster-opacity', changeOpacity);
+      }
+    });
+  }, [changeOpacity, isCompareMode, mapInstance, mapInstanceLeft, mapInstanceRight]);
 
 
 
@@ -220,6 +238,17 @@ const ChangeMap = ({
           selectedDataType="lulc"
         />
       </div>
+
+      {/* OPACITY SLIDER for change layer */}
+      {activeLayerName && onChangeOpacityChange && (
+        <div className="pointer-events-auto">
+          <OpacitySlider
+            opacity={changeOpacity}
+            defaultOpacity={defaultChangeOpacity}
+            onOpacityChange={onChangeOpacityChange}
+          />
+        </div>
+      )}
     </div>
   );
 };

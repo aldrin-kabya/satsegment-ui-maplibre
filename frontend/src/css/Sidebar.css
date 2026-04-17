@@ -37,7 +37,7 @@
 .sidebar-container.hover-active,
 .sidebar-container.force-expand,
 .sidebar-container.pinned {
-  max-width: 320px;
+  max-width: 330px;
   overflow: visible;
   box-shadow: 4px 0 15px rgba(0, 0, 0, 0.08);
   /* More prominent shadow when expanded */
@@ -156,7 +156,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-width: 80px;
+  min-width: 90px;
   gap: 6px;
   opacity: 0;
   pointer-events: none;

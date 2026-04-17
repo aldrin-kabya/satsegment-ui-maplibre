@@ -11,6 +11,10 @@ import BarChart from './BarChart';
 import ChangeMap from './ChangeMap';
 import useInstitutions from '../hooks/useInstitutions';
 import Sidebar from './Sidebar';
+import ZoomControls from './ZoomControls';
+import OpacitySlider from './OpacitySlider';
+import AreaSelection from './AreaSelection';
+import MapRuler from './MapRuler';
 import '../css/BarChart.css';
 
 // --- SUB-COMPONENT: Chart Toggle Container ---
@@ -95,8 +99,29 @@ const MapComponent = () => {
   const [isChartVisible, setIsChartVisible] = useState(true);
   const [mapsReady, setMapsReady] = useState(0);
 
-  // Selected District/Upazila GeoJSON
+  // Opacity control – default for LULC overlays
+  const DEFAULT_LULC_OPACITY = 0.5;
+  const [lulcOpacity, setLulcOpacity] = useState(DEFAULT_LULC_OPACITY);
+
+  // Opacity control – default for Change Map layers
+  const DEFAULT_CHANGE_OPACITY = 0.6;
+  const [changeOpacity, setChangeOpacity] = useState(DEFAULT_CHANGE_OPACITY);
+
   const [selectedRegionGeoJson, setSelectedRegionGeoJson] = useState(null);
+
+  // Draw Mode for manual selection ('rectangle', 'polygon', or null)
+  const [selectedDrawMode, setSelectedDrawMode] = useState(null);
+  const [lastDrawMode, setLastDrawMode] = useState('rectangle');
+
+  // Ruler Mode
+  const [isRulerMode, setIsRulerMode] = useState(false);
+
+  useEffect(() => {
+    if (selectedDrawMode) {
+       setLastDrawMode(selectedDrawMode);
+       if (isRulerMode) setIsRulerMode(false); // disable ruler when opening selection mode
+    }
+  }, [selectedDrawMode, isRulerMode]);
 
   // Toggle for the full-screen Change Map
   const [showChangeMap, setShowChangeMap] = useState(false);
@@ -119,7 +144,7 @@ const MapComponent = () => {
     if (!activeLayerName) return null;
     if (activeLayerName === 'brickfield') {
       const colormap = encodeURIComponent(JSON.stringify(BRICKFIELD_COLORS));
-      return { url: `${API_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${PATHS.brickfield[year]}&colormap=${colormap}`, opacity: 0.5 };
+      return { url: `${API_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${PATHS.brickfield[year]}&colormap=${colormap}`, opacity: lulcOpacity };
     }
     const activeClasses = { 1: false, 2: false, 3: false, 4: false, 5: false };
     switch (activeLayerName) {
@@ -138,7 +163,7 @@ const MapComponent = () => {
     const dynamicColors = { ...LULC_COLORS };
     Object.keys(activeClasses).forEach(key => { if (!activeClasses[key]) dynamicColors[key] = [0, 0, 0, 0]; });
     const colormap = encodeURIComponent(JSON.stringify(dynamicColors));
-    return { url: `${API_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${PATHS.lulc[year]}&colormap=${colormap}`, opacity: 0.5 };
+    return { url: `${API_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${PATHS.lulc[year]}&colormap=${colormap}`, opacity: lulcOpacity };
   };
 
   const getEmptyStyle = () => ({ version: 8, sources: {}, layers: [] });
@@ -197,9 +222,10 @@ const MapComponent = () => {
     if (!config) return;
 
     mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256, minzoom: 0, maxzoom: 24 });
-    const beforeId = mapInstance.getLayer('layer-mask') ? 'layer-mask' :
+    const beforeId = mapInstance.getLayer('layer-draw-mask') ? 'layer-draw-mask' :
+      (mapInstance.getLayer('layer-mask') ? 'layer-mask' :
       (mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
-        (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined));
+        (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined)));
       
     mapInstance.addLayer({ 
       id: layerId, 
@@ -304,6 +330,19 @@ const MapComponent = () => {
       }
     });
   }, [showChangeMap, isCompareMode]);
+
+  // Live-update raster opacity when slider moves
+  useEffect(() => {
+    const activeMaps = isCompareMode
+      ? [mapLeft.current, mapRight.current].filter(Boolean)
+      : [mapRef.current].filter(Boolean);
+
+    activeMaps.forEach(m => {
+      if (m.getLayer('overlay-layer')) {
+        m.setPaintProperty('overlay-layer', 'raster-opacity', lulcOpacity);
+      }
+    });
+  }, [lulcOpacity, isCompareMode]);
 
   useEffect(() => {
     if (isCompareMode) {
@@ -465,9 +504,17 @@ const MapComponent = () => {
         basemapType={basemapType}
         setBasemapType={setBasemapType}
         setShowChangeMap={setShowChangeMap}
+        selectedDrawMode={selectedDrawMode}
+        setSelectedDrawMode={setSelectedDrawMode}
+        lastDrawMode={lastDrawMode}
+        isRulerMode={isRulerMode}
+        setIsRulerMode={setIsRulerMode}
         onGoHome={() => {
           if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();
+          setSelectedDrawMode(null);
+          setIsRulerMode(false);
           setShowInstitutions(false);
+          setSelectedRegionGeoJson(null);
         }}
       />
 
@@ -514,12 +561,29 @@ const MapComponent = () => {
             handleLayerToggle={handleLayerToggle}
             selectedDataType="lulc"
           />
-
-          {/* 5. ATTRIBUTION */}
-          <div className="absolute bottom-0 right-0 z-20 bg-white/80 px-2 py-1 text-xs text-gray-700 pointer-events-none backdrop-blur-sm rounded-tl">
-            <span dangerouslySetInnerHTML={{ __html: getAttributionText() }} />
-          </div>
         </>
+      )}
+
+      {/* 5. ATTRIBUTION */}
+      <div className="absolute bottom-0 right-0 z-[10005] bg-white/80 px-2 py-1 text-xs text-gray-700 pointer-events-none backdrop-blur-sm rounded-tl shadow-sm">
+        <span dangerouslySetInnerHTML={{ __html: getAttributionText() }} />
+      </div>
+
+      {/* 6. ZOOM CONTROLS + OPACITY SLIDER */}
+      <ZoomControls 
+        mapInstance={mapRef.current}
+        mapInstanceLeft={mapLeft.current}
+        mapInstanceRight={mapRight.current}
+        isCompareMode={isCompareMode}
+      />
+
+      {/* Opacity slider – visible when an LULC layer is active and not in change-map view */}
+      {!showChangeMap && activeLayerName && (
+        <OpacitySlider
+          opacity={lulcOpacity}
+          defaultOpacity={DEFAULT_LULC_OPACITY}
+          onOpacityChange={setLulcOpacity}
+        />
       )}
 
       {/* 6. MAPS */}
@@ -531,6 +595,29 @@ const MapComponent = () => {
       ) : (
         <div ref={singleMapContainer} style={{ width: '100%', height: '100%' }} />
       )}
+
+      {/* Area Selection Component */}
+      <AreaSelection 
+        mapInstance={mapRef.current || mapLeft.current}
+        mapInstanceRight={isCompareMode ? mapRight.current : null}
+        isCompareMode={isCompareMode}
+        drawMode={selectedDrawMode}
+        selectedRegionGeoJson={selectedRegionGeoJson}
+        onSelectShape={(geoJson) => {
+          if (districtSelectorRef.current) districtSelectorRef.current.clearSelection(); // avoid logical conflicts
+          setSelectedRegionGeoJson({ ...geoJson, name: "Selected Area" });
+        }}
+        onClearShape={() => setSelectedRegionGeoJson(null)}
+      />
+
+      {/* Map Ruler Component */}
+      <MapRuler 
+        mapInstance={mapRef.current || mapLeft.current}
+        mapInstanceRight={isCompareMode ? mapRight.current : null}
+        isCompareMode={isCompareMode}
+        isActive={isRulerMode}
+        onClose={() => setIsRulerMode(false)}
+      />
 
       {/* 7. CHANGE MAP OVERLAY */}
       {showChangeMap && (
@@ -563,9 +650,15 @@ const MapComponent = () => {
           setSatelliteProvider={setSatelliteProvider}
           selectedRegionGeoJson={selectedRegionGeoJson}
           setSelectedRegionGeoJson={setSelectedRegionGeoJson}
+          changeOpacity={changeOpacity}
+          onChangeOpacityChange={setChangeOpacity}
+          defaultChangeOpacity={DEFAULT_CHANGE_OPACITY}
           onGoHome={() => {
              if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();
+             setSelectedDrawMode(null);
+             setIsRulerMode(false);
              setShowInstitutions(false);
+             setSelectedRegionGeoJson(null);
           }}
         />
       )}

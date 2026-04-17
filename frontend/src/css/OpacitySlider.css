@@ -1,0 +1,182 @@
+/* --- Opacity Slider (beside zoom controls) --- */
+
+.opacity-slider-container {
+  position: absolute;
+  bottom: 38px;
+  right: 60px;
+  /* gap from zoom controls */
+  z-index: 10006;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  pointer-events: auto;
+
+  /* Entry / exit animation */
+  animation: opacity-slider-in 0.22s ease-out both;
+}
+
+@keyframes opacity-slider-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Wrapper that holds label + slider + value */
+.opacity-slider-track-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(209, 213, 219, 0.4);
+  border-radius: 9999px;
+  padding: 5px 12px 5px 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* "Opacity" text label */
+.opacity-slider-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #374151;
+  white-space: nowrap;
+  user-select: none;
+  letter-spacing: 0.01em;
+}
+
+/* Custom range slider */
+.opacity-slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 90px;
+  height: 5px;
+  border-radius: 2.5px;
+  background: linear-gradient(to right,
+      #3b82f6 var(--slider-fill, 50%),
+      #d1d5db var(--slider-fill, 50%));
+  outline: none;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+/* Track – Webkit */
+.opacity-slider-input::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 2.5px;
+}
+
+/* Thumb – Webkit */
+.opacity-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 3px rgba(59, 130, 246, 0.35);
+  cursor: pointer;
+  margin-top: -5.5px;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.opacity-slider-input::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.55);
+  transform: scale(1.12);
+}
+
+.opacity-slider-input:active::-webkit-slider-thumb {
+  transform: scale(0.95);
+}
+
+/* Thumb – Firefox */
+.opacity-slider-input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 3px rgba(59, 130, 246, 0.35);
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.opacity-slider-input::-moz-range-thumb:hover {
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.55);
+  transform: scale(1.12);
+}
+
+.opacity-slider-input::-moz-range-track {
+  height: 5px;
+  border-radius: 2.5px;
+  background: transparent;
+}
+
+/* Value label (percentage) */
+.opacity-slider-value {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #374151;
+  min-width: 30px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Reset button */
+.opacity-slider-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(209, 213, 219, 0.4);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  color: #374151;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.opacity-slider-reset:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.opacity-slider-reset:active {
+  transform: scale(0.9);
+}
+
+.opacity-slider-reset svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Fade-out class for removal animation */
+.opacity-slider-container.fade-out {
+  animation: opacity-slider-out 0.18s ease-in both;
+}
+
+@keyframes opacity-slider-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
