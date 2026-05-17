@@ -6,9 +6,25 @@ const Icons = {
   Home: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>),
   Year: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>),
   Satellite: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 7 9 3 5 7l4 4"></path><path d="m17 11 4 4-4 4-4-4"></path><path d="m8 12 4 4 6-6-4-4Z"></path><path d="m16 8 3-3"></path><path d="M9 21a6 6 0 0 0-6-6"></path></svg>),
-  Compare: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>),
+  Compare: () => (
+    <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+      <line x1="12" y1="2" x2="12" y2="22"></line>
+      <polyline points="10 10 8 12 10 14" strokeWidth="1.2"></polyline>
+      <polyline points="14 10 16 12 14 14" strokeWidth="1.2"></polyline>
+    </svg>
+  ),
   Institution: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7 12 2"></polygon></svg>),
   LulcChanges: () => (<svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"></path><path d="M20 7H4"></path><path d="m8 21-4-4 4-4"></path><path d="M4 17h16"></path></svg>),
+  ActiveLocation: () => (
+    <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M12 2v4"></path>
+      <path d="M12 18v4"></path>
+      <path d="M4 12H2"></path>
+      <path d="M22 12h-2"></path>
+    </svg>
+  ),
   DrawRectangle: () => (
     <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="1" y1="4.5" x2="21" y2="4.5" strokeDasharray="3 3" />
@@ -62,7 +78,11 @@ const Sidebar = ({
   lastDrawMode,
   onGoHome,
   isRulerMode,
-  setIsRulerMode
+  setIsRulerMode,
+  isActiveLocationMode,
+  setIsActiveLocationMode,
+  measureType,
+  setMeasureType
 }) => {
   const [isPinned, setIsPinned] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -86,6 +106,7 @@ const Sidebar = ({
   const yearWrapperRef = useRef(null);
   const providerWrapperRef = useRef(null);
   const drawWrapperRef = useRef(null);
+  const measureWrapperRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -96,6 +117,9 @@ const Sidebar = ({
         setOpenDropdown(null);
       }
       if (openDropdown === 'draw' && drawWrapperRef.current && !drawWrapperRef.current.contains(event.target)) {
+        setOpenDropdown(null);
+      }
+      if (openDropdown === 'measure' && measureWrapperRef.current && !measureWrapperRef.current.contains(event.target)) {
         setOpenDropdown(null);
       }
     };
@@ -127,12 +151,13 @@ const Sidebar = ({
       {/* Home Menu */}
       <div className="sidebar-item-wrapper">
         <button
-          className={`sidebar-btn-reset sidebar-button ${(!inChangeMap && !isCompareMode && activeLayerName === 'all' && !selectedDrawMode && !isRulerMode) ? 'active' : ''}`}
+          className={`sidebar-btn-reset sidebar-button ${(!inChangeMap && !isCompareMode && activeLayerName === 'all' && !selectedDrawMode && !isRulerMode && !isActiveLocationMode) ? 'active' : ''}`}
           onClick={() => {
             if (setShowChangeMap) setShowChangeMap(false);
             if (setIsCompareMode) setIsCompareMode(false);
             if (setActiveLayerName) setActiveLayerName('all');
             if (setIsRulerMode) setIsRulerMode(false);
+            if (setIsActiveLocationMode) setIsActiveLocationMode(false);
             if (onGoHome) onGoHome();
             handleAction();
           }}
@@ -300,20 +325,73 @@ const Sidebar = ({
         </button>
       </div>
 
-      {/* Measure / Ruler */}
+      {/* Active Location */}
       <div className="sidebar-item-wrapper">
         <button
-          className={`sidebar-btn-reset sidebar-button ${isRulerMode ? 'active' : ''}`}
+          className={`sidebar-btn-reset sidebar-button ${isActiveLocationMode ? 'active' : ''}`}
           onClick={() => {
-            if (setIsRulerMode) setIsRulerMode(!isRulerMode);
-            // Disable other draw modes if we enter ruler mode
-            if (!isRulerMode && setSelectedDrawMode) setSelectedDrawMode(null);
+            if (setIsActiveLocationMode) setIsActiveLocationMode(!isActiveLocationMode);
+            if (!isActiveLocationMode) {
+              if (setSelectedDrawMode) setSelectedDrawMode(null);
+              if (setIsRulerMode) setIsRulerMode(false);
+            }
             handleAction();
           }}
-          title="Measure distance"
+          title="Coordinates"
+        >
+          <Icons.ActiveLocation />
+          <span className="sidebar-text">Coordinates</span>
+        </button>
+      </div>
+
+      {/* Measure / Ruler */}
+      <div className={`sidebar-item-wrapper ${openDropdown === 'measure' ? 'force-expand' : ''}`} ref={measureWrapperRef}>
+        <button
+          className={`sidebar-btn-reset sidebar-button ${isRulerMode ? 'active' : ''}`}
+          onClick={(e) => {
+            if (e.target.closest('.dropdown-anchor')) {
+              toggleDropdown('measure');
+              return;
+            }
+            if (setIsRulerMode) setIsRulerMode(!isRulerMode);
+            // Disable other draw modes if we enter ruler mode
+            if (!isRulerMode) {
+                if (setSelectedDrawMode) setSelectedDrawMode(null);
+                if (setIsActiveLocationMode) setIsActiveLocationMode(false);
+            }
+            setOpenDropdown(null);
+            handleAction();
+          }}
+          title="Measure distance, perimeter, or area"
         >
           <Icons.Ruler />
           <span className="sidebar-text">Measure</span>
+          <div className="dropdown-anchor">
+            <span className="value-preview-box">
+              {measureType.charAt(0).toUpperCase() + measureType.slice(1)}
+              <span className="dropdown-arrow-small">▼</span>
+            </span>
+            <div className={`sidebar-dropdown ${openDropdown === 'measure' ? 'open' : ''}`}>
+              {['distance', 'perimeter', 'area'].map(type => (
+                <div
+                  key={type}
+                  className={`dropdown-item ${measureType === type ? 'selected' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (setMeasureType) setMeasureType(type);
+                    if (!isRulerMode && setIsRulerMode) {
+                      setIsRulerMode(true);
+                      if (setSelectedDrawMode) setSelectedDrawMode(null);
+                    }
+                    setOpenDropdown(null);
+                    handleAction();
+                  }}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </div>
+              ))}
+            </div>
+          </div>
         </button>
       </div>
     </div>

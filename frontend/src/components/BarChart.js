@@ -13,8 +13,20 @@ import {
 import { Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { LULC_CLASSES } from './constants';
+import area from '@turf/area';
+import { polygon } from '@turf/helpers';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, ChartLegend, ChartDataLabels);
+
+const formatArea = (sqMeters) => {
+  if (sqMeters >= 1000000) {
+    return (sqMeters / 1000000).toFixed(2) + ' km²';
+  } else if (sqMeters >= 10000) {
+    return (sqMeters / 10000).toFixed(2) + ' ha';
+  } else {
+    return sqMeters.toFixed(2) + ' m²';
+  }
+};
 
 const PATHS = {
   "2019": "/media/drive2/armun/sat-segment/processed_cog/2019_cog.tif",
@@ -32,10 +44,12 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
     try {
       setLoading(true);
       let res;
+      let totalAreaSqMeters = 0;
 
       if (selectedRegion && selectedRegion.geometries) {
         // POST for specific region
         const geom = selectedRegion.geometries[0];
+        totalAreaSqMeters = area({ type: "Feature", geometry: geom });
         res = await fetch(`${apiUrl}/exact_stats_geojson`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -51,6 +65,16 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
           bounds.getWest().toFixed(4), bounds.getSouth().toFixed(4),
           bounds.getEast().toFixed(4), bounds.getNorth().toFixed(4)
         ].join(',');
+
+        const coords = [[
+          [bounds.getWest(), bounds.getSouth()],
+          [bounds.getEast(), bounds.getSouth()],
+          [bounds.getEast(), bounds.getNorth()],
+          [bounds.getWest(), bounds.getNorth()],
+          [bounds.getWest(), bounds.getSouth()]
+        ]];
+        totalAreaSqMeters = area(polygon(coords));
+
         const url = `${apiUrl}/exact_stats?url=${PATHS[year]}&bbox=${bbox}&_t=${Date.now()}`;
         res = await fetch(url);
       }
@@ -69,7 +93,13 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
 
       const processedData = LULC_CLASSES.map(cls => {
         const val = counts[cls.id.toString()] || 0;
-        return { name: cls.name, color: cls.color, percentage: (val / total) * 100 };
+        const percentage = val / total;
+        return {
+          name: cls.name,
+          color: cls.color,
+          percentage: percentage * 100,
+          areaSqM: percentage * totalAreaSqMeters
+        };
       });
 
       setChartData(processedData);
@@ -84,7 +114,6 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
   useEffect(() => {
     if (selectedRegion) {
       fetchStats();
-      if (map) map.off('moveend', fetchStats);
       return;
     }
     if (!map) return;
@@ -155,10 +184,16 @@ export default function BarChart({ map, year, activeLayer, apiUrl, selectedRegio
         titleFont: { size: 13 },
         bodyFont: { size: 13 },
         padding: 10,
-        cornerRadius: 4,
+        boxPadding: 5,
+        cornerRadius: 12,
         callbacks: {
           title: (items) => items[0].label, // Show Class Name
-          label: (context) => ` ${context.parsed.y.toFixed(2)}%` // Precise value on hover
+          label: (context) => {
+            const dataItem = chartData[context.dataIndex];
+            const perc = context.parsed.y.toFixed(2);
+            const areaStr = formatArea(dataItem.areaSqM);
+            return [`${perc}%`, areaStr];
+          }
         }
       },
       datalabels: {

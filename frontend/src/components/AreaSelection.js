@@ -216,8 +216,9 @@ const AreaSelection = ({
       if (previousDrawModeRef.current !== null && previousDrawModeRef.current !== drawMode) {
          if (drawRef.current) drawRef.current.deleteAll();
          if (drawRightRef.current) drawRightRef.current.deleteAll();
-         isDrawingSelectedRef.current = false;
-         onClearShape();
+         if (selectedRegionRef.current && selectedRegionRef.current.name === "Selected Area") {
+           onClearShape();
+         }
          renderMask(mapInstance, null);
          if (isCompareMode) renderMask(mapInstanceRight, null);
       }
@@ -248,7 +249,9 @@ const AreaSelection = ({
 
       isDrawingSelectedRef.current = false;
       previousDrawModeRef.current = null;
-      onClearShape();
+      if (selectedRegionRef.current && selectedRegionRef.current.name === "Selected Area") {
+        onClearShape();
+      }
       renderMask(mapInstance, null);
       if (isCompareMode && mapInstanceRight) renderMask(mapInstanceRight, null);
       

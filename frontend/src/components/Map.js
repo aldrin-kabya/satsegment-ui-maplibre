@@ -15,6 +15,7 @@ import ZoomControls from './ZoomControls';
 import OpacitySlider from './OpacitySlider';
 import AreaSelection from './AreaSelection';
 import MapRuler from './MapRuler';
+import ActiveLocation from './ActiveLocation';
 import '../css/BarChart.css';
 
 // --- SUB-COMPONENT: Chart Toggle Container ---
@@ -115,13 +116,18 @@ const MapComponent = () => {
 
   // Ruler Mode
   const [isRulerMode, setIsRulerMode] = useState(false);
+  const [measureType, setMeasureType] = useState('distance'); // 'distance', 'perimeter', 'area'
+
+  // Active Location Mode
+  const [isActiveLocationMode, setIsActiveLocationMode] = useState(false);
 
   useEffect(() => {
     if (selectedDrawMode) {
-       setLastDrawMode(selectedDrawMode);
-       if (isRulerMode) setIsRulerMode(false); // disable ruler when opening selection mode
+      setLastDrawMode(selectedDrawMode);
+      if (isRulerMode) setIsRulerMode(false); // disable ruler when opening selection mode
+      if (isActiveLocationMode) setIsActiveLocationMode(false);
     }
-  }, [selectedDrawMode, isRulerMode]);
+  }, [selectedDrawMode, isRulerMode, isActiveLocationMode]);
 
   // Toggle for the full-screen Change Map
   const [showChangeMap, setShowChangeMap] = useState(false);
@@ -224,15 +230,15 @@ const MapComponent = () => {
     mapInstance.addSource(sourceId, { type: 'raster', tiles: [config.url], tileSize: 256, minzoom: 0, maxzoom: 24 });
     const beforeId = mapInstance.getLayer('layer-draw-mask') ? 'layer-draw-mask' :
       (mapInstance.getLayer('layer-mask') ? 'layer-mask' :
-      (mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
-        (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined)));
-      
-    mapInstance.addLayer({ 
-      id: layerId, 
-      type: 'raster', 
-      source: sourceId, 
+        (mapInstance.getLayer('layer-adm0') ? 'layer-adm0' :
+          (mapInstance.getLayer('institutions-layer') ? 'institutions-layer' : undefined)));
+
+    mapInstance.addLayer({
+      id: layerId,
+      type: 'raster',
+      source: sourceId,
       layout: { visibility: showChangeMap ? 'none' : 'visible' },
-      paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' } 
+      paint: { 'raster-opacity': config.opacity, 'raster-resampling': 'nearest' }
     }, beforeId);
   };
 
@@ -363,26 +369,31 @@ const MapComponent = () => {
     }
     if (mapInstance.getSource('institutions-source')) return; // already added
 
-    // Create an SVG pin icon and add it as a map image
-    const size = 36;
+    // Create a beautifully tapered SVG pin icon using Path2D
+    const size = 64;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
-    // Pin body
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2 - 4, 10, Math.PI, 0, false);
-    ctx.lineTo(size / 2, size - 2);
-    ctx.closePath();
+
+    // M 32,4: Top center
+    // C 18.74,4 8,14.74 8,28: Top left arc
+    // C 8,44 32,60 32,60: Left taper to bottom tip
+    // C 32,60 56,44 56,28: Right taper from bottom tip
+    // C 56,14.74 45.26,4 32,4 Z: Top right arc
+    const pinPath = new Path2D("M 32,4 C 18.74,4 8,14.74 8,28 C 8,44 32,60 32,60 C 32,60 56,44 56,28 C 56,14.74 45.26,4 32,4 Z");
+
     ctx.fillStyle = '#E53E3E';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
+    ctx.fill(pinPath);
+
     ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke(pinPath);
+
     // Inner circle
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2 - 4, 4, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
+    ctx.arc(32, 28, 12, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
     ctx.fill();
 
     if (!mapInstance.hasImage('institution-pin')) {
@@ -402,8 +413,9 @@ const MapComponent = () => {
       source: 'institutions-source',
       layout: {
         'icon-image': 'institution-pin',
-        'icon-size': 1.0,
+        'icon-size': 0.7,
         'icon-allow-overlap': false,
+        'icon-anchor': 'bottom',
         'text-field': [
           'step',
           ['zoom'],
@@ -413,7 +425,7 @@ const MapComponent = () => {
         ],
         'text-font': ['Open Sans Regular'],
         'text-size': 11,
-        'text-offset': [0, 1.4],
+        'text-offset': [0, 0.5],
         'text-anchor': 'top',
         'text-optional': true,
         'text-max-width': 12,
@@ -489,7 +501,7 @@ const MapComponent = () => {
       </div>
 
       {/* 2. SIDEBAR (always rendered to preserve pin state) */}
-      <Sidebar 
+      <Sidebar
         inChangeMap={showChangeMap}
         isCompareMode={isCompareMode}
         setIsCompareMode={setIsCompareMode}
@@ -509,10 +521,15 @@ const MapComponent = () => {
         lastDrawMode={lastDrawMode}
         isRulerMode={isRulerMode}
         setIsRulerMode={setIsRulerMode}
+        isActiveLocationMode={isActiveLocationMode}
+        setIsActiveLocationMode={setIsActiveLocationMode}
+        measureType={measureType}
+        setMeasureType={setMeasureType}
         onGoHome={() => {
           if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();
           setSelectedDrawMode(null);
           setIsRulerMode(false);
+          setIsActiveLocationMode(false);
           setShowInstitutions(false);
           setSelectedRegionGeoJson(null);
         }}
@@ -570,7 +587,7 @@ const MapComponent = () => {
       </div>
 
       {/* 6. ZOOM CONTROLS + OPACITY SLIDER */}
-      <ZoomControls 
+      <ZoomControls
         mapInstance={mapRef.current}
         mapInstanceLeft={mapLeft.current}
         mapInstanceRight={mapRight.current}
@@ -597,7 +614,7 @@ const MapComponent = () => {
       )}
 
       {/* Area Selection Component */}
-      <AreaSelection 
+      <AreaSelection
         mapInstance={mapRef.current || mapLeft.current}
         mapInstanceRight={isCompareMode ? mapRight.current : null}
         isCompareMode={isCompareMode}
@@ -611,12 +628,22 @@ const MapComponent = () => {
       />
 
       {/* Map Ruler Component */}
-      <MapRuler 
+      <MapRuler
         mapInstance={mapRef.current || mapLeft.current}
         mapInstanceRight={isCompareMode ? mapRight.current : null}
         isCompareMode={isCompareMode}
         isActive={isRulerMode}
+        measureType={measureType}
         onClose={() => setIsRulerMode(false)}
+      />
+
+      {/* Active Location Component */}
+      <ActiveLocation
+        mapInstance={mapRef.current || mapLeft.current}
+        mapInstanceRight={isCompareMode ? mapRight.current : null}
+        isCompareMode={isCompareMode}
+        isActive={isActiveLocationMode}
+        onClose={() => setIsActiveLocationMode(false)}
       />
 
       {/* 7. CHANGE MAP OVERLAY */}
@@ -654,11 +681,12 @@ const MapComponent = () => {
           onChangeOpacityChange={setChangeOpacity}
           defaultChangeOpacity={DEFAULT_CHANGE_OPACITY}
           onGoHome={() => {
-             if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();
-             setSelectedDrawMode(null);
-             setIsRulerMode(false);
-             setShowInstitutions(false);
-             setSelectedRegionGeoJson(null);
+            if (districtSelectorRef.current) districtSelectorRef.current.clearSelection();
+            setSelectedDrawMode(null);
+            setIsRulerMode(false);
+            setIsActiveLocationMode(false);
+            setShowInstitutions(false);
+            setSelectedRegionGeoJson(null);
           }}
         />
       )}
